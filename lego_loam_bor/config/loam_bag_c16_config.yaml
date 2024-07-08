@@ -1,0 +1,78 @@
+bag_reader:
+  ros__parameters:
+    use_sim_time: true
+    bag_file_dir: "/root/ros2_bags/weiwuyin_back_side"
+    point_cloud_topic: "/lslidar_point_cloud"
+    odometry_topic: "/odom"
+    skip_frame: 10
+
+lego_loam_ip:
+  ros__parameters:
+    use_sim_time: true
+    # leishen16
+    laser:
+        num_vertical_scans: 16
+        num_horizontal_scans: 2000
+        ground_scan_index: 7
+        vertical_angle_bottom: -15.0          # degrees
+        vertical_angle_top: 15.0            # degrees
+        sensor_mount_angle: 0.0               # degrees
+        scan_period: 0.1                    # seconds
+
+    imageProjection:
+        segment_valid_point_num: 5
+        segment_valid_line_num: 2
+        segment_theta: 60.0                      # decrese this value may improve accuracy
+        maximum_detection_range: 100.0            # point cloud within this range will be used to project image
+
+lego_loam_fa:
+  ros__parameters:
+    use_sim_time: true
+    laser:
+        num_vertical_scans: 16
+        num_horizontal_scans: 2000
+        ground_scan_index: 7
+        vertical_angle_bottom: -15.0          # degrees
+        vertical_angle_top: 15.0            # degrees
+        sensor_mount_angle: 0.0               # degrees
+        scan_period: 0.1                    # seconds
+
+    featureAssociation:
+        odom_type: "laser_odometry"         #wheel_odometry/laser_odometry
+        robot_frame: "base_link"
+        sensor_frame: "laser_link"
+        sensor_x: 0.3
+        sensor_y: 0.0
+        sensor_z: 0.38
+        sensor_roll: 0.0
+        sensor_pitch: 0.0
+        sensor_yaw: -3.1415926
+        edge_threshold: 0.1
+        surf_threshold: 0.1
+        nearest_feature_search_distance: 3.0
+
+    mapping:
+        to_map_optimization: true
+
+lego_loam_mo:
+  ros__parameters:
+    use_sim_time: true
+    featureAssociation:
+        odom_type: "laser_odometry"         #wheel_odometry/laser_odometry
+
+    mapping:
+
+        distance_between_key_frame: 1.0
+        angle_between_key_frame: 1.0
+
+        enable_loop_closure: true
+
+        surrounding_keyframe_search_radius: 30.0   # key frame that is within n meters from current pose will be
+                                                   # considered for scan-to-map optimization (when loop closure disabled)
+
+        surrounding_keyframe_search_num: 20        # submap size (when loop closure enabled)
+        history_keyframe_search_radius: 10.0        # key frame that is within n meters from current pose will be considerd for loop closure
+        history_keyframe_search_num: 3            # 2n+1 number of history key frames will be fused into a submap for loop closure
+        history_keyframe_fitness_score: 5.0      # the smaller the better alignment
+
+        global_map_visualization_search_radius: 500.0 # key frames with in n meters will be visualized
