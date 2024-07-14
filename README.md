@@ -34,13 +34,14 @@ cd ~/dddmr_docker/docker_file && ./build.bash
 To play SLAM, you will need to download bag file (4.0GB). To play pose graph editor, you will need to download pose graph folder (2.6MB).
 ```
 cd ~
-git clone https://github.com/dddmobilerobot/dddmr_lego_loam_bor.git
-cd ~/dddmr_lego_loam_bor && ./download_files.bash
+git clone https://github.com/dddmobilerobot/dddmr_navigation.git
+cd ~/dddmr_navigation && git submodule update --init dddmr_docker src/dddmr_lego_loam_bor
+cd ~/dddmr_navigation/src/dddmr_lego_loam_bor && ./download_files.bash
 ```
 ### 3. Run demo
 #### Create a docker container
 ```
-cd ~/dddmr_lego_loam_bor && ./run_demo.bash
+cd ~/dddmr_navigation/src/dddmr_lego_loam_bor && ./run_demo.bash
 ```
 #### Play mapping using bag files
 ```
