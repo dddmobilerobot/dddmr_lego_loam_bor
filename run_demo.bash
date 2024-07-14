@@ -16,7 +16,7 @@ if [ "$is_cuda" != "" ] ;then
         --env="NVIDIA_DRIVER_CAPABILITIES=all"\
         --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
         --volume="${HOME}/dddmr_bags:/root/dddmr_bags" \
-        --volume="${HOME}/dddmr_lego_loam_bor:/root/dddmr_navigation/src/dddmr_lego_loam_bor" \
+        --volume="${HOME}/dddmr_navigation:/root/dddmr_navigation" \
         --name="dddmr_ros2_dev" \
         dddmr_gtsam:12.4.1-cudnn-devel-ubuntu22.04
 elif [ "$is_x64" != "" ] ;then 
@@ -27,7 +27,7 @@ elif [ "$is_x64" != "" ] ;then
         --env="QT_X11_NO_MITSHM=1" \
         --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
         --volume="${HOME}/dddmr_bags:/root/dddmr_bags" \
-        --volume="${HOME}/dddmr_lego_loam_bor:/root/dddmr_navigation/src/dddmr_lego_loam_bor" \
+        --volume="${HOME}/dddmr_navigation:/root/dddmr_navigation" \
         --name="dddmr_ros2_dev" \
         dddmr_gtsam:x64
 elif [ "$is_l4t_r36" != "" ] ;then 
@@ -45,7 +45,7 @@ elif [ "$is_l4t_r36" != "" ] ;then
         --volume="/lib/modules:/lib/modules" \
         --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" \
         --volume="${HOME}/dddmr_bags:/root/dddmr_bags" \
-        --volume="${HOME}/dddmr_lego_loam_bor:/root/dddmr_navigation/src/dddmr_lego_loam_bor" \
+        --volume="${HOME}/dddmr_navigation:/root/dddmr_navigation" \
         --name="dddmr_ros2_dev" \
         dddmr_gtsam:l4t_r36.2
 fi
