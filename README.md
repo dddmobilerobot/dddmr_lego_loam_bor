@@ -22,7 +22,20 @@ The following features are provided and are different from original version:
 Watch more videos on Youtube of 3D navigation stack -> [DDDMobilerobot](https://www.youtube.com/@dddmobilerobot9169)
 
 ## RUN The Demo
-
+### Create docker image
+The package runs in the docker, so we need to build the image first. We support both x64 (tested in intel NUC) and arm64 (tested in nvidia jetson jpack6).
+```
+cd ~
+git clone https://github.com/dddmobilerobot/dddmr_docker.git
+cd ~/dddmr_docker/docker_file && ./build.bash
+```
+### Download bag files
+To play SLAM, you will need to download bag file (4.0GB). To play pose graph editor, you will need to download pose graph folder (2.6MB).
+```
+cd ~
+git clone https://github.com/dddmobilerobot/dddmr_lego_loam_bor.git
+cd ~/dddmr_docker/docker_file && ./download_files.bash
+```
 # Pose Graph Editor Tutorial
 ## Edit the First Pose Graph
 ### Open a pose graph folder
