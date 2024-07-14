@@ -19,22 +19,40 @@ The following features are provided and are different from original version:
 <p align='center'>
     <img src="https://github.com/dddmobilerobot/dddmr_documentation_materials/blob/main/dddmr_lego_loam_bor/legoloam_weiwuyin.png" width="700" height="320"/>
 </p>
-Watch more videos on Youtube of 3D navigation stack -> [DDDMobilerobot](https://www.youtube.com/@dddmobilerobot9169)
+
+Watch more videos on Youtube of 3D navigation stack -> [DDDMobilerobot channel](https://www.youtube.com/UCNzute_mJsiTIPboaJwVDmw).
 
 ## RUN The Demo
-### Create docker image
+### 1. Create docker image
 The package runs in the docker, so we need to build the image first. We support both x64 (tested in intel NUC) and arm64 (tested in nvidia jetson jpack6).
 ```
 cd ~
 git clone https://github.com/dddmobilerobot/dddmr_docker.git
 cd ~/dddmr_docker/docker_file && ./build.bash
 ```
-### Download bag files
+### 2. Download bag files
 To play SLAM, you will need to download bag file (4.0GB). To play pose graph editor, you will need to download pose graph folder (2.6MB).
 ```
 cd ~
 git clone https://github.com/dddmobilerobot/dddmr_lego_loam_bor.git
-cd ~/dddmr_docker/docker_file && ./download_files.bash
+cd ~/dddmr_lego_loam_bor && ./download_files.bash
+```
+### 3. Run demo
+#### Create a docker container
+```
+cd ~/dddmr_lego_loam_bor && ./run_demo.bash
+```
+#### Play mapping using bag files
+```
+cd ~/dddmr_navigation && source /opt/ros/humble/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+source install/setup.bash
+ros2 launch lego_loam_bor lego_loam_bag.launch
+```
+#### Play pose graph editor
+```
+cd ~/dddmr_navigation && source /opt/ros/humble/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
+source install/setup.bash
+ros2 launch lego_loam_bor pose_graph_editor.launch
 ```
 # Pose Graph Editor Tutorial
 ## Edit the First Pose Graph
