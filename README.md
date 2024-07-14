@@ -20,7 +20,7 @@ The following features are provided and are different from original version:
     <img src="https://github.com/dddmobilerobot/dddmr_documentation_materials/blob/main/dddmr_lego_loam_bor/legoloam_weiwuyin.png" width="700" height="320"/>
 </p>
 
-Watch more videos on Youtube of 3D navigation stack -> [DDDMobilerobot channel](https://www.youtube.com/UCNzute_mJsiTIPboaJwVDmw).
+Watch more videos on Youtube of 3D navigation stack -> [DDDMobilerobot channel](https://www.youtube.com/@dddmobilerobot9169).
 
 ## RUN The Demo
 ### 1. Create docker image
