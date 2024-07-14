@@ -27,15 +27,13 @@ Watch more videos on Youtube of 3D navigation stack -> [DDDMobilerobot channel](
 The package runs in the docker, so we need to build the image first. We support both x64 (tested in intel NUC) and arm64 (tested in nvidia jetson jpack6).
 ```
 cd ~
-git clone https://github.com/dddmobilerobot/dddmr_docker.git
-cd ~/dddmr_docker/docker_file && ./build.bash
+git clone https://github.com/dddmobilerobot/dddmr_navigation.git
+cd ~/dddmr_navigation && git submodule update --init dddmr_docker src/dddmr_lego_loam_bor src/dddmr_rviz_tools
+cd ~/dddmr_navigation/dddmr_docker/docker_file && ./build.bash
 ```
 ### 2. Download bag files
 To play SLAM, you will need to download bag file (4.0GB). To play pose graph editor, you will need to download pose graph folder (2.6MB).
 ```
-cd ~
-git clone https://github.com/dddmobilerobot/dddmr_navigation.git
-cd ~/dddmr_navigation && git submodule update --init dddmr_docker src/dddmr_lego_loam_bor
 cd ~/dddmr_navigation/src/dddmr_lego_loam_bor && ./download_files.bash
 ```
 ### 3. Run demo
