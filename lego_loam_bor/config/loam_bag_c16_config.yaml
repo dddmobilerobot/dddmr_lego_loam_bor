@@ -1,7 +1,7 @@
 bag_reader:
   ros__parameters:
     use_sim_time: true
-    bag_file_dir: "/root/ros2_bags/weiwuyin_back_side"
+    bag_file_dir: "/root/dddmr_bags/weiwuyin_back_side"
     point_cloud_topic: "/lslidar_point_cloud"
     odometry_topic: "/odom"
     skip_frame: 10
