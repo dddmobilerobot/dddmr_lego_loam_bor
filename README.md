@@ -38,16 +38,18 @@ cd ~/dddmr_navigation/src/dddmr_lego_loam_bor && ./download_files.bash
 ```
 ### 3. Run demo
 #### Create a docker container
+> [!NOTE]
+> The following command will create an interactive docker container using the image we built. The we can launch the demo in the container.
 ```
-cd ~/dddmr_navigation/src/dddmr_lego_loam_bor && ./run_demo.bash
+cd ~/dddmr_navigation/dddmr_docker && ./run_demo.bash
 ```
-#### Play mapping using bag files
+#### Play mapping using bag files in docker container
 ```
 cd ~/dddmr_navigation && source /opt/ros/humble/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 ros2 launch lego_loam_bor lego_loam_bag.launch
 ```
-#### Play pose graph editor
+#### Play pose graph editor in docker container
 ```
 cd ~/dddmr_navigation && source /opt/ros/humble/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
