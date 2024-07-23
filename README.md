@@ -55,6 +55,19 @@ cd ~/dddmr_navigation && source /opt/ros/humble/setup.bash && colcon build --sym
 source install/setup.bash
 ros2 launch lego_loam_bor pose_graph_editor.launch
 ```
+## Cite *LeGO-LOAM*
+
+Many thanks to *LeGO-LOAM* paper: 
+```
+@inproceedings{legoloam2018,
+  title={LeGO-LOAM: Lightweight and Ground-Optimized Lidar Odometry and Mapping on Variable Terrain},
+  author={Tixiao Shan and Brendan Englot},
+  booktitle={IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  pages={4758-4765},
+  year={2018},
+  organization={IEEE}
+}
+```
 # Pose Graph Editor Tutorial
 ## Edit the First Pose Graph
 ### Open a pose graph folder
