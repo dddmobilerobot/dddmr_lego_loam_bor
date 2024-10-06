@@ -14,6 +14,11 @@
 #include <rosbag2_storage/storage_options.hpp>
 #include "rclcpp/serialization.hpp"
 
+//interactive
+#include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/int32.hpp"
+#include "std_msgs/msg/float32.hpp"
+
 using namespace std::chrono_literals;
 
 class BagReader : public rclcpp::Node
@@ -26,15 +31,26 @@ class BagReader : public rclcpp::Node
     void writeLog(std::string input_str){RCLCPP_INFO(this->get_logger(), "%s", input_str.c_str());}
     rclcpp::Time first_odom_stamp_, current_odom_stamp_;
     int skip_frame_;
+    bool pause_mapping_;
+    float icp_score_;
+    float history_keyframe_search_radius_;
 
   private:
     std::string bag_file_dir_;
     std::string point_cloud_topic_;
     std::string odometry_topic_;
     
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_pause_;
+    void bagPauseCb(const std_msgs::msg::Bool::SharedPtr msg);
+    rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr sub_skip_frame_;
+    void bagSkipFrameCb(const std_msgs::msg::Int32::SharedPtr msg);
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_icp_score_;
+    void bagICPScoreCb(const std_msgs::msg::Float32::SharedPtr msg);
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr sub_history_keyframe_search_radius_;
+    void bagHistoryKeyframeSearchRadiusCb(const std_msgs::msg::Float32::SharedPtr msg);
 };
 
-BagReader::BagReader():Node("bag_reader"){
+BagReader::BagReader():Node("bag_reader"), pause_mapping_(true){
 
   declare_parameter("bag_file_dir", rclcpp::ParameterValue(""));
   this->get_parameter("bag_file_dir", bag_file_dir_);
@@ -51,6 +67,32 @@ BagReader::BagReader():Node("bag_reader"){
   declare_parameter("skip_frame", rclcpp::ParameterValue(2));
   this->get_parameter("skip_frame", skip_frame_);
   RCLCPP_INFO(this->get_logger(), "skip_frame: %d", skip_frame_);  
+
+  sub_pause_ = this->create_subscription<std_msgs::msg::Bool>(
+        "lego_loam_bag_pause", 1,
+        std::bind(&BagReader::bagPauseCb, this, std::placeholders::_1));
+  sub_skip_frame_ = this->create_subscription<std_msgs::msg::Int32>(
+        "lego_loam_bag_skip_frame", 1,
+        std::bind(&BagReader::bagSkipFrameCb, this, std::placeholders::_1));
+  sub_icp_score_ = this->create_subscription<std_msgs::msg::Float32>(
+        "lego_loam_bag_icp_score", 1,
+        std::bind(&BagReader::bagICPScoreCb, this, std::placeholders::_1));
+  sub_history_keyframe_search_radius_ = this->create_subscription<std_msgs::msg::Float32>(
+        "lego_loam_bag_history_keyframe_search_radius", 1,
+        std::bind(&BagReader::bagHistoryKeyframeSearchRadiusCb, this, std::placeholders::_1));
+}
+
+void BagReader::bagPauseCb(const std_msgs::msg::Bool::SharedPtr msg){
+  pause_mapping_ = msg->data;
+}
+void BagReader::bagSkipFrameCb(const std_msgs::msg::Int32::SharedPtr msg){
+  skip_frame_ = msg->data;
+}
+void BagReader::bagICPScoreCb(const std_msgs::msg::Float32::SharedPtr msg){
+  icp_score_ = msg->data;
+}
+void BagReader::bagHistoryKeyframeSearchRadiusCb(const std_msgs::msg::Float32::SharedPtr msg){
+  history_keyframe_search_radius_ = msg->data;
 }
 
 int main(int argc, char** argv) {
@@ -64,6 +106,9 @@ int main(int argc, char** argv) {
   auto MO = std::make_shared<MapOptimization>("lego_loam_mo", association_out_channel);
   auto TF = std::make_shared<TransformFusion>("lego_loam_tf");
   auto BR = std::make_shared<BagReader>();
+  
+  BR->icp_score_ = MO->_history_keyframe_fitness_score;
+  BR->history_keyframe_search_radius_ = MO->_history_keyframe_search_radius;
 
   rosbag2_storage::StorageOptions storage_options{};
   storage_options.uri = BR->getBagFilePath();
@@ -84,6 +129,15 @@ int main(int argc, char** argv) {
   int cycle_cnt = 0;
   while (rclcpp::ok() && reader.has_next())
   {
+    if(BR->pause_mapping_){
+      rclcpp::spin_some(BR);
+      continue;
+    }
+    
+    //assign interactive values
+    MO->_history_keyframe_fitness_score = BR->icp_score_;
+    MO->_history_keyframe_search_radius = BR->history_keyframe_search_radius_;
+
     // serialized data
     auto serialized_message = reader.read_next();
     rclcpp::SerializedMessage extracted_serialized_msg(*serialized_message->serialized_data);
@@ -148,7 +202,7 @@ int main(int argc, char** argv) {
       BR->writeLog("Processing Speed: " + std::to_string(processing_speed));
       last_wall_time = wall_time_diff;
     }
-    
+    rclcpp::spin_some(BR); 
   }
   std::shared_ptr<std_srvs::srv::Empty::Request> request;
   std::shared_ptr<std_srvs::srv::Empty::Response> response;

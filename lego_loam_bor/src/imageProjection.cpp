@@ -120,6 +120,10 @@ ImageProjection::ImageProjection(std::string name, Channel<ProjectionOut>& outpu
   this->get_parameter("imageProjection.maximum_detection_range", _maximum_detection_range);
   RCLCPP_INFO(this->get_logger(), "imageProjection.maximum_detection_range: %.2f", _maximum_detection_range);
 
+  declare_parameter("imageProjection.minimum_detection_range", rclcpp::ParameterValue(0.3));
+  this->get_parameter("imageProjection.minimum_detection_range", _minimum_detection_range);
+  RCLCPP_INFO(this->get_logger(), "imageProjection.minimum_detection_range: %.2f", _minimum_detection_range);
+
   const size_t cloud_size = _vertical_scans * _horizontal_scans;
 
   _laser_cloud_in.reset(new pcl::PointCloud<PointType>());
@@ -217,6 +221,10 @@ void ImageProjection::projectPointCloud() {
     }
 
     float horizonAngle = std::atan2(thisPoint.x, thisPoint.y);
+    
+    if(horizonAngle>=0.7854 && horizonAngle<=1.57+0.7854 && range<5.0){
+      continue;
+    }
 
     int columnIdn = -round((horizonAngle - M_PI_2) / _ang_resolution_X) + _horizontal_scans * 0.5;
 
@@ -228,7 +236,7 @@ void ImageProjection::projectPointCloud() {
       continue;
     }
 
-    if (range < 0.1 || range>_maximum_detection_range){
+    if (range < _minimum_detection_range || range>_maximum_detection_range){
       continue;
     }
 

@@ -72,7 +72,7 @@ class ImageProjection : public rclcpp::Node
     Eigen::Matrix<int8_t,Eigen::Dynamic,Eigen::Dynamic> _ground_mat;  // ground matrix for ground cloud marking
 
     float _maximum_detection_range;
-  
+    float _minimum_detection_range;
 };
 
 

@@ -88,6 +88,8 @@ class MapOptimization : public rclcpp::Node
   void loopClosureThread();
 
   nav_msgs::msg::Odometry odomAftMapped;
+  float _history_keyframe_fitness_score;
+  float _history_keyframe_search_radius;
   
  private:
    
@@ -113,9 +115,7 @@ class MapOptimization : public rclcpp::Node
 
   float _surrounding_keyframe_search_radius;
   int   _surrounding_keyframe_search_num;
-  float _history_keyframe_search_radius;
   int   _history_keyframe_search_num;
-  float _history_keyframe_fitness_score;
   float _global_map_visualization_search_radius;
 
   Channel<AssociationOut>& _input_channel;
