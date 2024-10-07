@@ -10,6 +10,7 @@ The original authors deserve all the credits, we just stand on the shoulders of 
 The following features are provided and are different from original version:
 
 - ROS2 version (Humble) of LeGO LOAM BOR, support online and offline(bag) mapping, IMU/Odometry is optional.
+- Interactive mapping. Users can pause and resume mapping during bag playing, and change parameters accordingly.
 - Pose graph visualization.
 - Conditional loop closure mechanism for a more stable mapping result.
 - The result is saved as a pose graph, users can leverage our pose graph editor to modify the result ex: manual loop closure.
@@ -49,6 +50,12 @@ cd ~/dddmr_navigation && source /opt/ros/humble/setup.bash && colcon build --sym
 source install/setup.bash
 ros2 launch lego_loam_bor lego_loam_bag.launch
 ```
+In the Rviz2, click resume to start mapping, and change the parameter accordingly during mapping.
+
+<p align='center'>
+    <img src="https://github.com/dddmobilerobot/dddmr_documentation_materials/blob/main/dddmr_lego_loam_bor/interactive_mapping_panel.png" width="700" height="420"/>
+</p>
+
 #### Play pose graph editor in docker container
 ```
 cd ~/dddmr_navigation && source /opt/ros/humble/setup.bash && colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release
