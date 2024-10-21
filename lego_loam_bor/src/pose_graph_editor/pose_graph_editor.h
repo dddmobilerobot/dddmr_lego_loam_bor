@@ -43,6 +43,10 @@
 //@Create folder
 #include <filesystem>
 
+//optimized icp gaussian newton
+#include "opt_icp_gn/optimized_ICP_GN.h"
+#include "opt_icp_gn/common.h"
+
 using namespace std::placeholders;
 
 // chrono_literals handles user-defined time durations (e.g. 500ms) 

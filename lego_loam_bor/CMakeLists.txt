@@ -62,6 +62,17 @@ include_directories(
   ${GTSAM_INCLUDE_DIRS}
 )
 
+# opt_icp_gn
+add_library(opt_icp_gn SHARED
+  src/opt_icp_gn/optimized_ICP_GN.cpp
+)
+target_link_libraries(opt_icp_gn
+  ${PCL_LIBRARIES}
+)
+ament_target_dependencies(opt_icp_gn
+  ${dependencies}
+)
+
 # mcl/lego loam ip
 add_library(image_projection SHARED
   src/imageProjection.cpp
@@ -86,11 +97,12 @@ ament_target_dependencies(feature_association
 
 #lego loam mo
 add_library(map_optimization SHARED
-  src/mapOptmization.cpp
+  src/mapOptimization.cpp
 )
 target_link_libraries(map_optimization
   ${PCL_LIBRARIES}
   ${GTSAM_LIBRARIES}
+  opt_icp_gn
 )
 ament_target_dependencies(map_optimization
   ${dependencies}
@@ -110,11 +122,12 @@ ament_target_dependencies(transform_fusion
 
 #pose graph editing
 add_library(pose_graph_editor SHARED
-  src/pose_graph_editor.cpp
+  src/pose_graph_editor/pose_graph_editor.cpp
 )
 target_link_libraries(pose_graph_editor
   ${PCL_LIBRARIES}
   ${GTSAM_LIBRARIES}
+  opt_icp_gn
 )
 ament_target_dependencies(pose_graph_editor
   ${dependencies}
@@ -122,7 +135,7 @@ ament_target_dependencies(pose_graph_editor
 
 #pose graph merge editing
 add_library(pose_graph_merge_editor SHARED
-  src/pose_graph_merge_editor.cpp
+  src/pose_graph_editor/pose_graph_merge_editor.cpp
 )
 target_link_libraries(pose_graph_merge_editor
   pose_graph_editor
@@ -176,7 +189,7 @@ ament_target_dependencies(lego_loam
 
 #pose graph editor node
 add_executable(pose_graph_editor_node
-  src/pose_graph_editor_node.cpp
+  src/pose_graph_editor/pose_graph_editor_node.cpp
 )
 target_link_libraries(pose_graph_editor_node 
   pose_graph_merge_editor
@@ -187,6 +200,7 @@ ament_target_dependencies(pose_graph_editor_node
 )
 
 install(TARGETS
+  opt_icp_gn
   image_projection
   feature_association
   map_optimization
@@ -218,6 +232,6 @@ install(DIRECTORY
 )
 
 ament_export_include_directories(include)
-ament_export_libraries(image_projection feature_association map_optimization transform_fusion pose_graph_editor)
+ament_export_libraries(opt_icp_gn image_projection feature_association map_optimization transform_fusion pose_graph_editor)
 ament_export_dependencies(${dependencies})
 ament_package()

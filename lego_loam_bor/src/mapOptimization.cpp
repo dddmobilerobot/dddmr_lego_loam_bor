@@ -111,10 +111,6 @@ MapOptimization::MapOptimization(std::string name,
   this->get_parameter("mapping.history_keyframe_fitness_score", _history_keyframe_fitness_score);
   RCLCPP_INFO(this->get_logger(), "mapping.history_keyframe_fitness_score: %.2f", _history_keyframe_fitness_score);
 
-  declare_parameter("mapping.surrounding_keyframe_search_radius", rclcpp::ParameterValue(0.0));
-  this->get_parameter("mapping.surrounding_keyframe_search_radius", _surrounding_keyframe_search_radius);
-  RCLCPP_INFO(this->get_logger(), "mapping.surrounding_keyframe_search_radius: %.2f", _surrounding_keyframe_search_radius);
-
   declare_parameter("mapping.surrounding_keyframe_search_num", rclcpp::ParameterValue(0));
   this->get_parameter("mapping.surrounding_keyframe_search_num", _surrounding_keyframe_search_num);
   RCLCPP_INFO(this->get_logger(), "mapping.surrounding_keyframe_search_num: %d", _surrounding_keyframe_search_num);
@@ -802,7 +798,7 @@ void MapOptimization::publishGlobalMap() {
   mtx.lock();
   kdtreeGlobalMap.setInputCloud(cloudKeyPoses3D);
   kdtreeGlobalMap.radiusSearch(
-      currentRobotPosPoint, _global_map_visualization_search_radius,
+      currentRobotPosPoint_, _global_map_visualization_search_radius,
       pointSearchIndGlobalMap, pointSearchSqDisGlobalMap);
   mtx.unlock();
 
@@ -853,9 +849,12 @@ bool MapOptimization::detectLoopClosure() {
   std::vector<float> pointSearchSqDisLoop;
   kdtreeHistoryKeyPoses.setInputCloud(cloudKeyPoses3D);
   kdtreeHistoryKeyPoses.radiusSearch(
-      currentRobotPosPoint, _history_keyframe_search_radius, pointSearchIndLoop,
+      currentRobotPosPoint_, _history_keyframe_search_radius, pointSearchIndLoop,
       pointSearchSqDisLoop);
-
+  
+  double min_distance = 9999.9;
+  double d_distance;
+  double accumulated_distance_between_two_frames;
   closestHistoryFrameID = -1;
   for (int i = 0; i < pointSearchIndLoop.size(); ++i) {
     int id = pointSearchIndLoop[i];
@@ -863,23 +862,63 @@ bool MapOptimization::detectLoopClosure() {
     double dx = cloudKeyPoses6D->points[id].x - transformLast[3];
     double dy = cloudKeyPoses6D->points[id].y - transformLast[4];
     double dz = cloudKeyPoses6D->points[id].z - transformLast[5];
+    d_distance = sqrt(dx*dx + dy*dy + dz*dz);
 
-    double droll = cloudKeyPoses6D->points[id].roll - transformLast[0];
-    double dpitch = cloudKeyPoses6D->points[id].pitch - transformLast[1];
-    double dyaw = cloudKeyPoses6D->points[id].yaw - transformLast[2];
-    
-    double d_distance = sqrt(dx*dx + dy *dy + dz*dz);
-    double d_theta = sqrt(droll*droll + dpitch*dpitch + dyaw*dyaw);
+    if (d_distance<min_distance){
 
-    if (d_distance<15.0 && cloudKeyPoses6D->points.size() - id > 20){
-      closestHistoryFrameID = id;
-      RCLCPP_INFO(this->get_logger(), "Closest key id: %d, %.2f, %.2f", closestHistoryFrameID, d_distance, d_theta);
-      break;
+      //@ Check accumulated distance from closestHistoryFrameID to curent, if it is less than 20 meters, we dont need loop closure
+      //@ bacause it is not possible to need loop closure with 20 meters
+      //@ this setup implicity make edge distance between current frame to previous frame to exceed 20 meters
+      double accumulated_distance = 0.0;
+      PointTypePose ref_pt = cloudKeyPoses6D->points[id];
+      for(int j = id; j<cloudKeyPoses6D->points.size(); j++){
+        double dx = ref_pt.x - cloudKeyPoses6D->points[j].x;
+        double dy = ref_pt.y - cloudKeyPoses6D->points[j].y;
+        double dz = ref_pt.z - cloudKeyPoses6D->points[j].z;
+        accumulated_distance+=sqrt(dx*dx + dy*dy + dz*dz);
+        ref_pt = cloudKeyPoses6D->points[j];
+      }
+
+      if(accumulated_distance>20.0){
+        closestHistoryFrameID = id;
+        min_distance = d_distance;
+        accumulated_distance_between_two_frames = accumulated_distance;
+      }
+
     }
-
   }
+  
   if (closestHistoryFrameID == -1) {
     return false;
+  }
+  else{
+
+    //calculate relative pose for ICP initial guess
+    tf2::Transform tf2_map2current, tf2_map2closestKeyFrame;
+    tf2_map2current.setOrigin(tf2::Vector3(transformLast[3], transformLast[4], transformLast[5]));
+    tf2::Quaternion tf2_r1;
+    tf2_r1.setRPY(transformLast[0], transformLast[1], transformLast[2]); 
+    tf2_r1.normalize();
+    tf2_map2current.setRotation(tf2_r1);
+
+    tf2_map2closestKeyFrame.setOrigin(tf2::Vector3(cloudKeyPoses6D->points[closestHistoryFrameID].x,
+                          cloudKeyPoses6D->points[closestHistoryFrameID].y, cloudKeyPoses6D->points[closestHistoryFrameID].z));
+    tf2::Quaternion tf2_r2;
+    tf2_r2.setRPY(cloudKeyPoses6D->points[closestHistoryFrameID].roll, 
+                          cloudKeyPoses6D->points[closestHistoryFrameID].pitch, cloudKeyPoses6D->points[closestHistoryFrameID].yaw); 
+    tf2_r2.normalize();
+    tf2_map2closestKeyFrame.setRotation(tf2_r2);
+    tf2_current2closestKeyFrame_.mult(tf2_map2current.inverse(), tf2_map2closestKeyFrame);
+    
+    /*
+    Remember the 'x' is left and right in real world because we are in camera frame
+    Remember the 'y' is up and down in real world because we are in camera frame
+    Remember the 'z' is front and rear in real world because we are in camera frame
+    */
+    RCLCPP_INFO(this->get_logger(), 
+      "Closest key id: %d, relative pose: %.2f, %.2f, %.2f, accumulated_distance: %.2f", closestHistoryFrameID, 
+        tf2_current2closestKeyFrame_.getOrigin().x(), tf2_current2closestKeyFrame_.getOrigin().y(), tf2_current2closestKeyFrame_.getOrigin().z(),
+        accumulated_distance_between_two_frames);
   }
 
   // save latest key frames
@@ -962,6 +1001,7 @@ void MapOptimization::performLoopClosure() {
   // reset the flag first no matter icp successes or not
   potentialLoopFlag = false;
   // ICP Settings
+  /*
   pcl::IterativeClosestPoint<PointType, PointType> icp;
   icp.setMaxCorrespondenceDistance(100);
   icp.setMaximumIterations(100);
@@ -981,13 +1021,49 @@ void MapOptimization::performLoopClosure() {
   {
     return;
   }
-    
+  */
+  /*
+  T_predict << 1.0, 0.0, 0.0, 'x',
+               0.0, 1.0, 0.0, 'y',
+               0.0, 0.0, 1.0, 'z',
+               0.0, 0.0, 0.0, 1.0;  
+  Remember the 'y' is up and down in real world because we are in camera frame
+  Remember the 'x' is left and right in real world because we are in camera frame
+  Remember the 'z' is front and rear in real world because we are in camera frame
+  */
+  pcl::PointCloud<PointType>::Ptr cloud_source_opti_transformed_ptr;
+  cloud_source_opti_transformed_ptr.reset(new pcl::PointCloud<PointType>());
+  Eigen::Matrix4f T_predict, T_final;
+  T_predict.setIdentity();
+  //@ use relative pose as initial pose, so we can bound max torelance to 1.0
+  T_predict << 1.0, 0.0, 0.0, tf2_current2closestKeyFrame_.getOrigin().x(),
+               0.0, 1.0, 0.0, tf2_current2closestKeyFrame_.getOrigin().y(),
+               0.0, 0.0, 1.0, tf2_current2closestKeyFrame_.getOrigin().z(),
+               0.0, 0.0, 0.0, 1.0;
+  OptimizedICPGN icp_opti;
+  icp_opti.SetTargetCloud(nearHistorySurfKeyFrameCloudDS);
+  icp_opti.SetTransformationEpsilon(1e-2);
+  icp_opti.SetMaxIterations(30);
+  icp_opti.SetMaxCorrespondDistance(1.0);
+  icp_opti.Match(latestSurfKeyFrameCloud, T_predict, cloud_source_opti_transformed_ptr, T_final);
+  //RCLCPP_INFO(this->get_logger(), "_history_keyframe_fitness_score: %.2f, ICP score: %.2f, convergence: %d", _history_keyframe_fitness_score, icp_opti.GetFitnessScore(), icp_opti.HasConverged());
+
+  if (!icp_opti.HasConverged() || icp_opti.GetFitnessScore() > _history_keyframe_fitness_score)
+  {
+    return;
+  }
+  else{
+    //RCLCPP_INFO(this->get_logger(), "_history_keyframe_fitness_score: %.2f, ICP score: %.2f, convergence: %d", _history_keyframe_fitness_score, icp_opti.GetFitnessScore(), icp_opti.HasConverged());
+    //RCLCPP_INFO_STREAM(this->get_logger(), "T_final: \n" << T_final);
+    RCLCPP_INFO(this->get_logger(), "Edge created from: %d to %d, ICP score: %.2f", latestFrameIDLoopCloure, closestHistoryFrameID, icp_opti.GetFitnessScore());
+  }
+  
   // publish corrected cloud
   if (true) {
     pcl::PointCloud<PointType>::Ptr closed_cloud(
         new pcl::PointCloud<PointType>());
-    pcl::transformPointCloud(*latestSurfKeyFrameCloud, *closed_cloud,
-                             icp.getFinalTransformation());
+    pcl::transformPointCloud(*latestSurfKeyFrameCloud, *closed_cloud, 
+                             T_final);
     sensor_msgs::msg::PointCloud2 cloudMsgTemp;
     pcl::toROSMsg(*closed_cloud, cloudMsgTemp);
     cloudMsgTemp.header.stamp = timeLaserOdometry_header_.stamp;
@@ -1000,7 +1076,7 @@ void MapOptimization::performLoopClosure() {
   float x, y, z, roll, pitch, yaw;
   Eigen::Affine3f correctionCameraFrame;
   correctionCameraFrame =
-      icp.getFinalTransformation();  // get transformation in camera frame
+      T_final;  // get transformation in camera frame
                                      // (because points are in camera frame)
   pcl::getTranslationAndEulerAngles(correctionCameraFrame, x, y, z, roll, pitch,
                                     yaw);
@@ -1020,7 +1096,7 @@ void MapOptimization::performLoopClosure() {
       pclPointTogtsamPose3(cloudKeyPoses6D->points[closestHistoryFrameID]);
   gtsam::Vector Vector6(6);
 
-  float noiseScore = icp.getFitnessScore();
+  float noiseScore = icp_opti.GetFitnessScore();
   Vector6 << noiseScore, noiseScore, noiseScore, noiseScore, noiseScore,
       noiseScore;
   constraintNoise = noiseModel::Diagonal::Variances(Vector6);
@@ -1050,131 +1126,59 @@ void MapOptimization::performLoopClosure() {
 void MapOptimization::extractSurroundingKeyFrames() {
   if (cloudKeyPoses3D->points.empty() == true) return;
 
-  if (_loop_closure_enabled == true) {
-    // only use recent key poses for graph building
-    if (recentCornerCloudKeyFrames.size() <
-        _surrounding_keyframe_search_num) {  // queue is not full (the beginning
-                                         // of mapping or a loop is just
-                                         // closed)
-                                         // clear recent key frames queue
-      recentCornerCloudKeyFrames.clear();
-      recentSurfCloudKeyFrames.clear();
-      recentOutlierCloudKeyFrames.clear();
-      int numPoses = cloudKeyPoses3D->points.size();
-      for (int i = numPoses - 1; i >= 0; --i) {
-        int thisKeyInd = (int)cloudKeyPoses3D->points[i].intensity;
-        PointTypePose thisTransformation = cloudKeyPoses6D->points[thisKeyInd];
-        updateTransformPointCloudSinCos(&thisTransformation);
-        // extract surrounding map
-        recentCornerCloudKeyFrames.push_front(
-            transformPointCloud(cornerCloudKeyFrames[thisKeyInd]));
-        recentSurfCloudKeyFrames.push_front(
-            transformPointCloud(surfCloudKeyFrames[thisKeyInd]));
-        recentOutlierCloudKeyFrames.push_front(
-            transformPointCloud(outlierCloudKeyFrames[thisKeyInd]));
-        if (recentCornerCloudKeyFrames.size() >= _surrounding_keyframe_search_num)
-          break;
-      }
-    } else {  // queue is full, pop the oldest key frame and push the latest
-              // key frame
-      if (latestFrameID != cloudKeyPoses3D->points.size() -
-                               1) {  // if the robot is not moving, no need to
-                                     // update recent frames
-
-        recentCornerCloudKeyFrames.pop_front();
-        recentSurfCloudKeyFrames.pop_front();
-        recentOutlierCloudKeyFrames.pop_front();
-        // push latest scan to the end of queue
-        latestFrameID = cloudKeyPoses3D->points.size() - 1;
-        PointTypePose thisTransformation =
-            cloudKeyPoses6D->points[latestFrameID];
-        updateTransformPointCloudSinCos(&thisTransformation);
-        recentCornerCloudKeyFrames.push_back(
-            transformPointCloud(cornerCloudKeyFrames[latestFrameID]));
-        recentSurfCloudKeyFrames.push_back(
-            transformPointCloud(surfCloudKeyFrames[latestFrameID]));
-        recentOutlierCloudKeyFrames.push_back(
-            transformPointCloud(outlierCloudKeyFrames[latestFrameID]));
-      }
+  // only use recent key poses for graph building
+  if (recentCornerCloudKeyFrames.size() <
+      _surrounding_keyframe_search_num) {  // queue is not full (the beginning
+                                        // of mapping or a loop is just
+                                        // closed)
+                                        // clear recent key frames queue
+    recentCornerCloudKeyFrames.clear();
+    recentSurfCloudKeyFrames.clear();
+    recentOutlierCloudKeyFrames.clear();
+    int numPoses = cloudKeyPoses3D->points.size();
+    for (int i = numPoses - 1; i >= 0; --i) {
+      int thisKeyInd = (int)cloudKeyPoses3D->points[i].intensity;
+      PointTypePose thisTransformation = cloudKeyPoses6D->points[thisKeyInd];
+      updateTransformPointCloudSinCos(&thisTransformation);
+      // extract surrounding map
+      recentCornerCloudKeyFrames.push_front(
+          transformPointCloud(cornerCloudKeyFrames[thisKeyInd]));
+      recentSurfCloudKeyFrames.push_front(
+          transformPointCloud(surfCloudKeyFrames[thisKeyInd]));
+      recentOutlierCloudKeyFrames.push_front(
+          transformPointCloud(outlierCloudKeyFrames[thisKeyInd]));
+      if (recentCornerCloudKeyFrames.size() >= _surrounding_keyframe_search_num)
+        break;
     }
+  } else {  // queue is full, pop the oldest key frame and push the latest
+            // key frame
+    if (latestFrameID != cloudKeyPoses3D->points.size() -
+                              1) {  // if the robot is not moving, no need to
+                                    // update recent frames
 
-    for (int i = 0; i < recentCornerCloudKeyFrames.size(); ++i) {
-      *laserCloudCornerFromMap += *recentCornerCloudKeyFrames[i];
-      *laserCloudSurfFromMap += *recentSurfCloudKeyFrames[i];
-      *laserCloudSurfFromMap += *recentOutlierCloudKeyFrames[i];
-    }
-  } else {
-    surroundingKeyPoses->clear();
-    surroundingKeyPosesDS->clear();
-    // extract all the nearby key poses and downsample them
-    kdtreeSurroundingKeyPoses.setInputCloud(cloudKeyPoses3D);
-    kdtreeSurroundingKeyPoses.radiusSearch(
-        currentRobotPosPoint, (double)_surrounding_keyframe_search_radius,
-        pointSearchInd, pointSearchSqDis);
-
-    for (int i = 0; i < pointSearchInd.size(); ++i){
-      surroundingKeyPoses->points.push_back(
-          cloudKeyPoses3D->points[pointSearchInd[i]]);
-    }
-
-    downSizeFilterSurroundingKeyPoses.setInputCloud(surroundingKeyPoses);
-    downSizeFilterSurroundingKeyPoses.filter(*surroundingKeyPosesDS);
-
-    // delete key frames that are not in surrounding region
-    int numSurroundingPosesDS = surroundingKeyPosesDS->points.size();
-    for (int i = 0; i < surroundingExistingKeyPosesID.size(); ++i) {
-      bool existingFlag = false;
-      for (int j = 0; j < numSurroundingPosesDS; ++j) {
-        if (surroundingExistingKeyPosesID[i] ==
-            (int)surroundingKeyPosesDS->points[j].intensity) {
-          existingFlag = true;
-          break;
-        }
-      }
-      if (existingFlag == false) {
-        surroundingExistingKeyPosesID.erase(
-            surroundingExistingKeyPosesID.begin() + i);
-        surroundingCornerCloudKeyFrames.erase(
-            surroundingCornerCloudKeyFrames.begin() + i);
-        surroundingSurfCloudKeyFrames.erase(
-            surroundingSurfCloudKeyFrames.begin() + i);
-        surroundingOutlierCloudKeyFrames.erase(
-            surroundingOutlierCloudKeyFrames.begin() + i);
-        --i;
-      }
-    }
-    // add new key frames that are not in calculated existing key frames
-    for (int i = 0; i < numSurroundingPosesDS; ++i) {
-      bool existingFlag = false;
-      for (auto iter = surroundingExistingKeyPosesID.begin();
-           iter != surroundingExistingKeyPosesID.end(); ++iter) {
-        if ((*iter) == (int)surroundingKeyPosesDS->points[i].intensity) {
-          existingFlag = true;
-          break;
-        }
-      }
-      if (existingFlag == true) {
-        continue;
-      } else {
-        int thisKeyInd = (int)surroundingKeyPosesDS->points[i].intensity;
-        PointTypePose thisTransformation = cloudKeyPoses6D->points[thisKeyInd];
-        updateTransformPointCloudSinCos(&thisTransformation);
-        surroundingExistingKeyPosesID.push_back(thisKeyInd);
-        surroundingCornerCloudKeyFrames.push_back(
-            transformPointCloud(cornerCloudKeyFrames[thisKeyInd]));
-        surroundingSurfCloudKeyFrames.push_back(
-            transformPointCloud(surfCloudKeyFrames[thisKeyInd]));
-        surroundingOutlierCloudKeyFrames.push_back(
-            transformPointCloud(outlierCloudKeyFrames[thisKeyInd]));
-      }
-    }
-
-    for (int i = 0; i < surroundingExistingKeyPosesID.size(); ++i) {
-      *laserCloudCornerFromMap += *surroundingCornerCloudKeyFrames[i];
-      *laserCloudSurfFromMap += *surroundingSurfCloudKeyFrames[i];
-      *laserCloudSurfFromMap += *surroundingOutlierCloudKeyFrames[i];
+      recentCornerCloudKeyFrames.pop_front();
+      recentSurfCloudKeyFrames.pop_front();
+      recentOutlierCloudKeyFrames.pop_front();
+      // push latest scan to the end of queue
+      latestFrameID = cloudKeyPoses3D->points.size() - 1;
+      PointTypePose thisTransformation =
+          cloudKeyPoses6D->points[latestFrameID];
+      updateTransformPointCloudSinCos(&thisTransformation);
+      recentCornerCloudKeyFrames.push_back(
+          transformPointCloud(cornerCloudKeyFrames[latestFrameID]));
+      recentSurfCloudKeyFrames.push_back(
+          transformPointCloud(surfCloudKeyFrames[latestFrameID]));
+      recentOutlierCloudKeyFrames.push_back(
+          transformPointCloud(outlierCloudKeyFrames[latestFrameID]));
     }
   }
+
+  for (int i = 0; i < recentCornerCloudKeyFrames.size(); ++i) {
+    *laserCloudCornerFromMap += *recentCornerCloudKeyFrames[i];
+    *laserCloudSurfFromMap += *recentSurfCloudKeyFrames[i];
+    *laserCloudSurfFromMap += *recentOutlierCloudKeyFrames[i];
+  }
+  
   // Downsample the surrounding corner key frames (or map)
   downSizeFilterCorner.setInputCloud(laserCloudCornerFromMap);
   downSizeFilterCorner.filter(*laserCloudCornerFromMapDS);
@@ -1516,29 +1520,32 @@ void MapOptimization::scan2MapOptimization() {
 }
 
 void MapOptimization::saveKeyFramesAndFactor() {
-  currentRobotPos.x = transformAftMapped[3];
-  currentRobotPos.y = transformAftMapped[4];
-  currentRobotPos.z = transformAftMapped[5];
-  currentRobotPos.yaw = transformAftMapped[1];
-  currentRobotPosPoint.x = transformAftMapped[3];
-  currentRobotPosPoint.y = transformAftMapped[4];
-  currentRobotPosPoint.z = transformAftMapped[5];
+  currentRobotPos_.x = transformAftMapped[3];
+  currentRobotPos_.y = transformAftMapped[4];
+  currentRobotPos_.z = transformAftMapped[5];
+  currentRobotPos_.yaw = transformAftMapped[1];
+  currentRobotPos_.pitch = transformAftMapped[0];
+  currentRobotPos_.roll = transformAftMapped[2];
+
+  currentRobotPosPoint_.x = transformAftMapped[3];
+  currentRobotPosPoint_.y = transformAftMapped[4];
+  currentRobotPosPoint_.z = transformAftMapped[5];
   
 
   bool saveThisKeyFrame = true;
-  if (sqrt((previousRobotPos.x - currentRobotPos.x) *
-               (previousRobotPos.x - currentRobotPos.x) +
-           (previousRobotPos.y - currentRobotPos.y) *
-               (previousRobotPos.y - currentRobotPos.y) +
-           (previousRobotPos.z - currentRobotPos.z) *
-               (previousRobotPos.z - currentRobotPos.z)) < distance_between_key_frame_ &&
-               fabs(previousRobotPos.yaw - currentRobotPos.yaw) < angle_between_key_frame_) {
+  if (sqrt((previousRobotPos_.x - currentRobotPos_.x) *
+               (previousRobotPos_.x - currentRobotPos_.x) +
+           (previousRobotPos_.y - currentRobotPos_.y) *
+               (previousRobotPos_.y - currentRobotPos_.y) +
+           (previousRobotPos_.z - currentRobotPos_.z) *
+               (previousRobotPos_.z - currentRobotPos_.z)) < distance_between_key_frame_ &&
+               fabs(previousRobotPos_.yaw - currentRobotPos_.yaw) < angle_between_key_frame_) {
     saveThisKeyFrame = false;
   }
 
   if (saveThisKeyFrame == false && !cloudKeyPoses3D->points.empty()) return;
 
-  previousRobotPos = currentRobotPos;
+  previousRobotPos_ = currentRobotPos_;
   //
   // update grsam graph
   //

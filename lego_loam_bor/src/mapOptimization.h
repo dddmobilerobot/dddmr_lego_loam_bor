@@ -39,6 +39,9 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/segmentation/extract_clusters.h>
 
+//optimized icp gaussian newton
+#include "opt_icp_gn/optimized_ICP_GN.h"
+#include "opt_icp_gn/common.h"
 
 using namespace std::placeholders;
 
@@ -95,6 +98,8 @@ class MapOptimization : public rclcpp::Node
    
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pub_key_pose_arr_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr pub_pose_graph_;
+  //@ relative pose between current pose and nearest key frame for initial guess to opt_icp_gn
+  tf2::Transform tf2_current2closestKeyFrame_;
   //@ affine for final transformation to map when outputing pose graph
   Eigen::Affine3d trans_m2ci_af3_, trans_c2b_af3_, trans_b2c_af3_;
   tf2::Stamped<tf2::Transform> tf2_trans_m2ci_;
@@ -113,7 +118,6 @@ class MapOptimization : public rclcpp::Node
 
   bool _loop_closure_enabled;
 
-  float _surrounding_keyframe_search_radius;
   int   _surrounding_keyframe_search_num;
   int   _history_keyframe_search_num;
   float _global_map_visualization_search_radius;
@@ -159,9 +163,9 @@ class MapOptimization : public rclcpp::Node
   std::deque<pcl::PointCloud<PointType>::Ptr> surroundingSurfCloudKeyFrames;
   std::deque<pcl::PointCloud<PointType>::Ptr> surroundingOutlierCloudKeyFrames;
 
-  PointTypePose previousRobotPos;
-  PointTypePose currentRobotPos;
-  PointType currentRobotPosPoint;
+  PointTypePose previousRobotPos_;
+  PointTypePose currentRobotPos_;
+  PointType currentRobotPosPoint_;
 
   pcl::PointCloud<PointType>::Ptr cloudKeyPoses3D;
   pcl::PointCloud<PointTypePose>::Ptr cloudKeyPoses6D;

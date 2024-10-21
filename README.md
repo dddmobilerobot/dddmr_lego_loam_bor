@@ -1,5 +1,5 @@
 # DDDMR LeGO LOAM BOR
-This repo is based on the [LeGO-LOAM-BOR ](https://github.com/facontidavide/LeGO-LOAM-BOR), and has been modified for ground vehicles. We did not fork the repo due to significant modifications, variant features and frameworks are implemented.
+This repo is based on the [LeGO-LOAM-BOR](https://github.com/facontidavide/LeGO-LOAM-BOR), and has been modified for ground vehicles. We did not fork the repo due to significant modifications, variant features and frameworks are implemented.
 
 The original authors deserve all the credits, we just stand on the shoulders of giants.
 
@@ -16,6 +16,7 @@ The following features are provided and are different from original version:
 - The result is saved as a pose graph, users can leverage our pose graph editor to modify the result ex: manual loop closure.
 - Our pose graph editor allow users to merge two pose graphs.
 - The pose graph can be used in DDDMR MCL localization.
+- [Optimized ICP](https://github.com/zm0612/optimized_ICP) is leveraged for the loop closure.
 
 <p align='center'>
     <img src="https://github.com/dddmobilerobot/dddmr_documentation_materials/blob/main/dddmr_lego_loam_bor/legoloam_weiwuyin.png" width="700" height="320"/>

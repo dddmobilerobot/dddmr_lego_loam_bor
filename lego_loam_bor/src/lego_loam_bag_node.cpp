@@ -36,10 +36,11 @@ class BagReader : public rclcpp::Node
     float history_keyframe_search_radius_;
 
   private:
+
     std::string bag_file_dir_;
     std::string point_cloud_topic_;
     std::string odometry_topic_;
-    
+  
     rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_pause_;
     void bagPauseCb(const std_msgs::msg::Bool::SharedPtr msg);
     rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr sub_skip_frame_;
@@ -51,7 +52,7 @@ class BagReader : public rclcpp::Node
 };
 
 BagReader::BagReader():Node("bag_reader"), pause_mapping_(true){
-
+  
   declare_parameter("bag_file_dir", rclcpp::ParameterValue(""));
   this->get_parameter("bag_file_dir", bag_file_dir_);
   RCLCPP_INFO(this->get_logger(), "bag_file_dir: %s", bag_file_dir_.c_str());
@@ -123,10 +124,12 @@ int main(int argc, char** argv) {
 
   //@calculate clock
   double last_wall_time = 0.0;
+  double last_pub_time = 0.0;
   bool go_first_odom = false;
-  struct timeval start, end;
+  struct timeval start, inloop, end;
   gettimeofday(&start, NULL);
   int cycle_cnt = 0;
+  last_pub_time = start.tv_sec + double(start.tv_usec) / 1e6;
   while (rclcpp::ok() && reader.has_next())
   {
     if(BR->pause_mapping_){
@@ -173,19 +176,25 @@ int main(int argc, char** argv) {
       IP->cloudHandler(laserCloudMsg);
       bool FA_ready = FA->systemInitedLM; //This line should come before FA->runFeatureAssociation()
       FA->runFeatureAssociation();
-
       nav_msgs::msg::Odometry::SharedPtr mapping_odom;
       mapping_odom = std::make_shared<nav_msgs::msg::Odometry>();
       *mapping_odom = FA->mappingOdometry;
       TF->laserOdometryHandler(mapping_odom);
-
       if(FA_ready && cycle_cnt%BR->skip_frame_==0){
+
         MO->run();
         nav_msgs::msg::Odometry::SharedPtr odom_aft_mapped;
         odom_aft_mapped = std::make_shared<nav_msgs::msg::Odometry>();
         *odom_aft_mapped = MO->odomAftMapped;
         TF->odomAftMappedHandler(odom_aft_mapped);
-        MO->publishGlobalMapThread();
+
+        gettimeofday(&inloop, NULL);
+        double inloop_t = inloop.tv_sec + double(inloop.tv_usec) / 1e6;
+        if(inloop_t - last_pub_time > 1.0){
+          MO->publishGlobalMapThread();
+          last_pub_time = inloop_t;
+        }
+
         MO->loopClosureThread();
       }
       cycle_cnt++;

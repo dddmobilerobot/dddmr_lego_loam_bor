@@ -757,6 +757,7 @@ void PoseGraphEditor::operationCommandCB(const std_msgs::msg::String::SharedPtr 
     }
     //TODO: voxel and then icp, can make result better, because icp will focus clustered area
     // ICP Settings
+    /*
     pcl::IterativeClosestPoint<PointType, PointType> icp;
     icp.setMaxCorrespondenceDistance(100);
     icp.setMaximumIterations(100);
@@ -774,8 +775,26 @@ void PoseGraphEditor::operationCommandCB(const std_msgs::msg::String::SharedPtr 
     //icp.getFitnessScore() > _history_keyframe_fitness_score)
     icp_score_ = icp.getFitnessScore();
     RCLCPP_INFO(this->get_logger(), "ICP score: %.2f", icp_score_);
+    */
     
-    auto node1_2_node2_af3 = icp.getFinalTransformation();
+    pcl::PointCloud<PointType>::Ptr cloud_source_opti_transformed_ptr;
+    cloud_source_opti_transformed_ptr.reset(new pcl::PointCloud<PointType>());
+    Eigen::Matrix4f T_predict, T_final;
+    T_predict.setIdentity();
+    T_predict << 1.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0;
+    OptimizedICPGN icp_opti;
+    icp_opti.SetTargetCloud(node_1_pointcloud_);
+    icp_opti.SetTransformationEpsilon(1e-4);
+    icp_opti.SetMaxIterations(50);
+    icp_opti.SetMaxCorrespondDistance(20.0);
+    icp_opti.Match(node_2_pointcloud_, T_predict, cloud_source_opti_transformed_ptr, T_final);
+    icp_score_ = icp_opti.GetFitnessScore();
+    RCLCPP_INFO(this->get_logger(), "ICP score: %.2f", icp_score_);
+    
+    auto node1_2_node2_af3 = T_final;//icp.getFinalTransformation();
     node1_2_node2_af3d_ = node1_2_node2_af3.cast<double>();
     node_2_pointcloud_icp_.reset(new pcl::PointCloud<PointType>());
     pcl::transformPointCloud(*node_2_pointcloud_, *node_2_pointcloud_icp_, node1_2_node2_af3d_);
