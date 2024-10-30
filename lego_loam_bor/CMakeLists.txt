@@ -199,6 +199,17 @@ ament_target_dependencies(pose_graph_editor_node
   ${dependencies}
 )
 
+#pointcloud to occupancy node
+add_executable(pointcloud2occupancy
+  src/pointcloud2occupancy/pointcloud2occupancy.cpp
+)
+target_link_libraries(pointcloud2occupancy 
+  ${PCL_LIBRARIES}
+)
+ament_target_dependencies(pointcloud2occupancy
+  ${dependencies}
+)
+
 install(TARGETS
   opt_icp_gn
   image_projection
@@ -217,6 +228,7 @@ install(TARGETS
   lego_loam
   lego_loam_bag
   pose_graph_editor_node
+  pointcloud2occupancy
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 

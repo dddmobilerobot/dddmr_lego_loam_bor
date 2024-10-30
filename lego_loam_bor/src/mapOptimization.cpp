@@ -200,6 +200,7 @@ void MapOptimization::pcdSaver(const std::shared_ptr<std_srvs::srv::Empty::Reque
 
   downSizeFilterFinalStitch.setInputCloud(completeGlobalStitch);
   downSizeFilterFinalStitch.filter(*completeGlobalStitch);
+  pcl::transformPointCloud(*completeGlobalStitch, *completeGlobalStitch, trans_b2c_af3_);
   pcl::io::savePCDFileASCII(mapping_dir_string + "/map.pcd", *completeGlobalStitch);
   
   //save surface
@@ -211,15 +212,16 @@ void MapOptimization::pcdSaver(const std::shared_ptr<std_srvs::srv::Empty::Reque
   }
   downSizeFilterFinalStitch.setInputCloud(completeGlobalStitch);
   downSizeFilterFinalStitch.filter(*completeGlobalStitch);
+  pcl::transformPointCloud(*completeGlobalStitch, *completeGlobalStitch, trans_b2c_af3_);
   pcl::io::savePCDFileASCII(mapping_dir_string + "/ground.pcd", *completeGlobalStitch);
   
   completeGlobalStitch.reset(new pcl::PointCloud<PointType>());
   for (int i = 0; i < cloudKeyPoses3D->points.size(); ++i) {
     int thisKeyInd = (int)cloudKeyPoses3D->points[i].intensity;
-    *completeGlobalStitch += *transformPointCloud(
-        cornerCloudKeyFrames[thisKeyInd], &cloudKeyPoses6D->points[thisKeyInd]);
-    *completeGlobalStitch += *transformPointCloud(
-        surfCloudKeyFrames[thisKeyInd], &cloudKeyPoses6D->points[thisKeyInd]);
+    //*completeGlobalStitch += *transformPointCloud(
+    //    cornerCloudKeyFrames[thisKeyInd], &cloudKeyPoses6D->points[thisKeyInd]);
+    //*completeGlobalStitch += *transformPointCloud(
+    //    surfCloudKeyFrames[thisKeyInd], &cloudKeyPoses6D->points[thisKeyInd]);
     //*completeGlobalStitch +=
     //    *transformPointCloud(outlierCloudKeyFrames[thisKeyInd],
     //                         &cloudKeyPoses6D->points[thisKeyInd]);
@@ -272,19 +274,22 @@ void MapOptimization::pcdSaver(const std::shared_ptr<std_srvs::srv::Empty::Reque
   std::string pcd_dir = mapping_dir_string + "/pcd";
   std::filesystem::create_directory(pcd_dir);
   for (int i = 0; i < cloudKeyPoses6D->points.size(); ++i) {
-    keyFrameStitch.reset(new pcl::PointCloud<PointType>());
+    keyFrameCorner.reset(new pcl::PointCloud<PointType>());
     int thisKeyInd = (int)cloudKeyPoses6D->points[i].intensity;
-    *keyFrameStitch += (*cornerCloudKeyFrames[thisKeyInd]);
-    pcl::transformPointCloud(*keyFrameStitch, *keyFrameStitch, trans_b2c_af3_);
-    pcl::io::savePCDFileASCII(pcd_dir + "/" + std::to_string(thisKeyInd) + "_feature.pcd", *keyFrameStitch);
+    *keyFrameCorner += (*cornerCloudKeyFrames[thisKeyInd]);
+    pcl::transformPointCloud(*keyFrameCorner, *keyFrameCorner, trans_b2c_af3_);
+    pcl::io::savePCDFileASCII(pcd_dir + "/" + std::to_string(thisKeyInd) + "_feature.pcd", *keyFrameCorner);
 
-    keyFrameGroundStitch.reset(new pcl::PointCloud<PointType>());
-    *keyFrameGroundStitch += (*surfFlatCloudKeyFrames[thisKeyInd]);
-    pcl::transformPointCloud(*keyFrameGroundStitch, *keyFrameGroundStitch, trans_b2c_af3_);
-    pcl::io::savePCDFileASCII(pcd_dir + "/" + std::to_string(thisKeyInd) + "_ground.pcd", *keyFrameGroundStitch);
+    keyFrameGround.reset(new pcl::PointCloud<PointType>());
+    *keyFrameGround += (*surfFlatCloudKeyFrames[thisKeyInd]);
+    pcl::transformPointCloud(*keyFrameGround, *keyFrameGround, trans_b2c_af3_);
+    pcl::io::savePCDFileASCII(pcd_dir + "/" + std::to_string(thisKeyInd) + "_ground.pcd", *keyFrameGround);
 
+    keyFrameSurface.reset(new pcl::PointCloud<PointType>());
+    *keyFrameSurface += (*surfCloudKeyFrames[thisKeyInd]);
+    pcl::transformPointCloud(*keyFrameSurface, *keyFrameSurface, trans_b2c_af3_);
+    pcl::io::savePCDFileASCII(pcd_dir + "/" + std::to_string(thisKeyInd) + "_surface.pcd", *keyFrameSurface);
   }  
-
 
 }
 
@@ -352,7 +357,7 @@ void MapOptimization::allocateMemory() {
   globalMapKeyFrames.reset(new pcl::PointCloud<PointType>());
   globalMapKeyFramesDS.reset(new pcl::PointCloud<PointType>());
   completeGlobalStitch.reset(new pcl::PointCloud<PointType>());
-  keyFrameStitch.reset(new pcl::PointCloud<PointType>());
+
 
   timeLaserOdometry = 0;
   timeLastGloalMapPublish = 0;

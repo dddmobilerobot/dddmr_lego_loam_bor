@@ -37,7 +37,7 @@ ImageProjection::ImageProjection(std::string name, Channel<ProjectionOut>& outpu
 
   //supress the no intensity found log
   pcl::console::setVerbosityLevel(pcl::console::L_ERROR);
-
+  clock_ = this->get_clock();
   /*
   _sub_laser_cloud = this->create_subscription<sensor_msgs::msg::PointCloud2>(
         "lslidar_point_cloud", rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable(),
@@ -479,7 +479,7 @@ void ImageProjection::publishClouds() {
     if (true) {
       pcl::toROSMsg(*cloud, laserCloudTemp);
       laserCloudTemp.header = cloudHeader;
-      //laserCloudTemp.header.frame_id = "laser_link";
+      laserCloudTemp.header.stamp = clock_->now();
       pub->publish(laserCloudTemp);
     }
   };
@@ -487,7 +487,7 @@ void ImageProjection::publishClouds() {
   //PublishCloud(_pub_outlier_cloud, _outlier_cloud);
   //PublishCloud(_pub_segmented_cloud, _segmented_cloud);
   //PublishCloud(_pub_full_cloud, _full_cloud);
-  //PublishCloud(_pub_ground_cloud, _ground_cloud);
+  PublishCloud(_pub_ground_cloud, _ground_cloud);
   PublishCloud(_pub_segmented_cloud_pure, _segmented_cloud_pure);
   //PublishCloud(_pub_full_info_cloud, _full_info_cloud);
 

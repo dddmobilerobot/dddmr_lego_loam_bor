@@ -150,7 +150,7 @@ class MapOptimization : public rclcpp::Node
   
   std::vector<pcl::PointCloud<PointType>::Ptr> cornerCloudKeyFrames;
   std::vector<pcl::PointCloud<PointType>::Ptr> surfCloudKeyFrames;
-  std::vector<pcl::PointCloud<PointType>::Ptr> surfFlatCloudKeyFrames;//for ground stitching
+  std::vector<pcl::PointCloud<PointType>::Ptr> surfFlatCloudKeyFrames;
   std::vector<pcl::PointCloud<PointType>::Ptr> outlierCloudKeyFrames;
 
   std::deque<pcl::PointCloud<PointType>::Ptr> recentCornerCloudKeyFrames;
@@ -226,8 +226,9 @@ class MapOptimization : public rclcpp::Node
   pcl::PointCloud<PointType>::Ptr globalMapKeyFrames;
   pcl::PointCloud<PointType>::Ptr globalMapKeyFramesDS;
   pcl::PointCloud<PointType>::Ptr completeGlobalStitch; //for final stitch
-  pcl::PointCloud<PointType>::Ptr keyFrameStitch; //for exporting key frame including cornerCloudKeyFrames/surfCloudKeyFrames/surfFlatCloudKeyFrames
-  pcl::PointCloud<PointType>::Ptr keyFrameGroundStitch; //for exporting key frame including cornerCloudKeyFrames/surfCloudKeyFrames/surfFlatCloudKeyFrames
+  pcl::PointCloud<PointType>::Ptr keyFrameCorner; //for exporting key frame: cornerCloudKeyFrames
+  pcl::PointCloud<PointType>::Ptr keyFrameGround; //for exporting key frame: surfFlatCloudKeyFrames
+  pcl::PointCloud<PointType>::Ptr keyFrameSurface; //for exporting key frame: surfCloudKeyFrames
 
   std::vector<int> pointSearchInd;
   std::vector<float> pointSearchSqDis;

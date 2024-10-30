@@ -69,6 +69,7 @@ class FeatureAssociation : public rclcpp::Node
   pcl::PointCloud<PointType>::Ptr cornerPointsLessSharp;
   pcl::PointCloud<PointType>::Ptr surfPointsFlat;
   pcl::PointCloud<PointType>::Ptr surfPointsLessFlat;
+  pcl::PointCloud<PointType>::Ptr surfPointsFlatDense;
 
   pcl::PointCloud<PointType>::Ptr surfPointsLessFlatScan;
   pcl::PointCloud<PointType>::Ptr surfPointsLessFlatScanDS;

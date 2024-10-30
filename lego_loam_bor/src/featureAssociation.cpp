@@ -184,6 +184,7 @@ void FeatureAssociation::initializationValue() {
   cornerPointsLessSharp.reset(new pcl::PointCloud<PointType>());
   surfPointsFlat.reset(new pcl::PointCloud<PointType>());
   surfPointsLessFlat.reset(new pcl::PointCloud<PointType>());
+  surfPointsFlatDense.reset(new pcl::PointCloud<PointType>());
 
   surfPointsLessFlatScan.reset(new pcl::PointCloud<PointType>());
   surfPointsLessFlatScanDS.reset(new pcl::PointCloud<PointType>());
@@ -382,6 +383,15 @@ void FeatureAssociation::extractFeatures() {
   cornerPointsLessSharp->clear();
   surfPointsFlat->clear();
   surfPointsLessFlat->clear();
+  surfPointsFlatDense->clear();
+  
+  for(unsigned int dense_i = 0; dense_i<segmentedCloud->points.size(); dense_i++){
+    if (cloudCurvature[dense_i] < _surf_threshold &&
+        segInfo.segmented_cloud_ground_flag[dense_i]) {
+      surfPointsFlatDense->push_back(segmentedCloud->points[dense_i]);
+    }
+  }
+
 
   for (int i = 0; i < _vertical_scans; i++) {
     surfPointsLessFlatScan->clear();
@@ -1504,7 +1514,7 @@ void FeatureAssociation::runFeatureAssociation() {
     *out.cloud_corner_last = *laserCloudCornerLast;
     *out.cloud_surf_last = *laserCloudSurfLast;
     *out.cloud_outlier_last = *outlierCloud;
-    *out.cloud_surf_flat_last = *surfPointsFlat;
+    *out.cloud_surf_flat_last = *surfPointsFlatDense;
     
     out.laser_odometry = mappingOdometry;
     
