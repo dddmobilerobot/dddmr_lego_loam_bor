@@ -185,6 +185,7 @@ void FeatureAssociation::initializationValue() {
   surfPointsFlat.reset(new pcl::PointCloud<PointType>());
   surfPointsLessFlat.reset(new pcl::PointCloud<PointType>());
   surfPointsFlatDense.reset(new pcl::PointCloud<PointType>());
+  downSizesSurfPointsFlatDense.setLeafSize(0.2, 0.2, 0.2);
 
   surfPointsLessFlatScan.reset(new pcl::PointCloud<PointType>());
   surfPointsLessFlatScanDS.reset(new pcl::PointCloud<PointType>());
@@ -1514,6 +1515,9 @@ void FeatureAssociation::runFeatureAssociation() {
     *out.cloud_corner_last = *laserCloudCornerLast;
     *out.cloud_surf_last = *laserCloudSurfLast;
     *out.cloud_outlier_last = *outlierCloud;
+
+    downSizesSurfPointsFlatDense.setInputCloud(surfPointsFlatDense);
+    downSizesSurfPointsFlatDense.filter(*surfPointsFlatDense);
     *out.cloud_surf_flat_last = *surfPointsFlatDense;
     
     out.laser_odometry = mappingOdometry;

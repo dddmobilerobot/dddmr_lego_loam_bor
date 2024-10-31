@@ -75,7 +75,8 @@ class FeatureAssociation : public rclcpp::Node
   pcl::PointCloud<PointType>::Ptr surfPointsLessFlatScanDS;
 
   pcl::VoxelGrid<PointType> downSizeFilter;
-
+  pcl::VoxelGrid<PointType> downSizesSurfPointsFlatDense;
+  
   double timeScanCur;
 
   cloud_msgs::msg::CloudInfo segInfo;
