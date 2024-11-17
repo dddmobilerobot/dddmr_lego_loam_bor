@@ -106,6 +106,7 @@ class FeatureAssociation : public rclcpp::Node
   std::vector<pcl::PointCloud<PointType>::Ptr> vector_laser_cloud_raw_feature_;
   std::vector<pcl::PointCloud<PointType>::Ptr> vector_laser_cloud_raw_horizontal_plane_;
   
+  int skip_cnt_;
   LidarSensor lidar_sensor_;
   LidarOdometry lidar_odometry_;
   Pose6DOF feature_relative_pose_, plane_relative_pose_;

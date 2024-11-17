@@ -4,7 +4,7 @@ const float RAD2DEG = 180.0 / M_PI;
 
 FeatureAssociation::FeatureAssociation(std::string name, Channel<ProjectionOut> &input_channel,
                                        Channel<AssociationOut> &output_channel) : 
-Node(name), input_channel_(input_channel), output_channel_(output_channel){
+Node(name), input_channel_(input_channel), output_channel_(output_channel), skip_cnt_(-1){
 
   clock_ = this->get_clock();
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
@@ -191,22 +191,22 @@ void FeatureAssociation::findNormalFeatures(){
         continue;
       pcl::Normal v_0 = observation_normals->points[laser_cloud_raw_feature_index_[index-1]];
       pcl::Normal v_1 = observation_normals->points[laser_cloud_raw_feature_index_[index]];
-      if(fabs(v_0.normal_z)>10.0*fabs(v_0.normal_y) || fabs(v_0.normal_z)>10.0*fabs(v_0.normal_x))
-        continue;
-      if(fabs(v_1.normal_z)>10.0*fabs(v_1.normal_y) || fabs(v_1.normal_z)>10.0*fabs(v_1.normal_x))
-        continue;      
+      //if(fabs(v_0.normal_z)>10.0*fabs(v_0.normal_y) || fabs(v_0.normal_z)>10.0*fabs(v_0.normal_x))
+      //  continue;
+      //if(fabs(v_1.normal_z)>10.0*fabs(v_1.normal_y) || fabs(v_1.normal_z)>10.0*fabs(v_1.normal_x))
+      //  continue;      
       double v0dotv1 = v_0.normal_x * v_1.normal_x + v_0.normal_y * v_1.normal_y + v_0.normal_z * v_1.normal_z;
       double magnitude_0 = sqrt(v_0.normal_x * v_0.normal_x + v_0.normal_y * v_0.normal_y + v_0.normal_z * v_0.normal_z);
       double magnitude_1 = sqrt(v_1.normal_x * v_1.normal_x + v_1.normal_y * v_1.normal_y + v_1.normal_z * v_1.normal_z);
       double cos_theta = v0dotv1/(magnitude_0 * magnitude_1);
       double theta = acos(cos_theta);
-      static double theta_threshold = 10./180.*3.1415926535;
+      static double theta_threshold = -1;
       if(fabs(theta) > theta_threshold){
         normal_feature_current_->push_back(vector_laser_cloud_raw_feature_.back()->points[laser_cloud_raw_feature_index_[index]]);
       }
     }
   }
-  RCLCPP_INFO(this->get_logger(), "Features: %lu", normal_feature_current_->points.size());
+  //RCLCPP_INFO(this->get_logger(), "Features: %lu", normal_feature_current_->points.size());
 }
 
 void FeatureAssociation::findPlaneFeatures(){
@@ -216,21 +216,21 @@ void FeatureAssociation::findPlaneFeatures(){
   plane_feature_current_.reset(new pcl::PointCloud<PointType>());
   plane_feature_current_->header = vector_laser_cloud_raw_horizontal_plane_.back()->header;
   for (size_t i = 0; i < lidar_sensor_.vertical_scans/2; ++i ) {
-    for (size_t j = 1; j < lidar_sensor_.horizontal_scans; j+=10) {
+    for (size_t j = 1; j < lidar_sensor_.horizontal_scans; j++) {
       size_t index = j + (i)*lidar_sensor_.horizontal_scans;
       if(laser_cloud_raw_horizontal_plane_index_.find(index) == laser_cloud_raw_horizontal_plane_index_.end())
         continue;
       PointType a_pt = vector_laser_cloud_raw_horizontal_plane_.back()->points[laser_cloud_raw_horizontal_plane_index_[index]];
-      if(sqrt(a_pt.x*a_pt.x + a_pt.y*a_pt.y + a_pt.z*a_pt.z)<3.0)
+      if(sqrt(a_pt.x*a_pt.x + a_pt.y*a_pt.y + a_pt.z*a_pt.z)>5.0)
         continue;
       plane_feature_current_->push_back(a_pt);
     }
   }
-  RCLCPP_INFO(this->get_logger(), "Plane: %lu", plane_feature_current_->points.size());
+  //RCLCPP_INFO(this->get_logger(), "Plane: %lu", plane_feature_current_->points.size());
 }
 
 void FeatureAssociation::fuseRelativePoses(){
-  lidar_odometry_.accumulateTransform(feature_relative_pose_.x, feature_relative_pose_.y, plane_relative_pose_.z, plane_relative_pose_.roll, feature_relative_pose_.pitch, feature_relative_pose_.yaw);
+  lidar_odometry_.accumulateTransform(feature_relative_pose_.x, feature_relative_pose_.y, plane_relative_pose_.z, plane_relative_pose_.roll, plane_relative_pose_.pitch, feature_relative_pose_.yaw);
 }
 
 void FeatureAssociation::runFeatureAssociation(){
@@ -242,6 +242,9 @@ void FeatureAssociation::runFeatureAssociation(){
   laser_cloud_raw_feature_index_ = projection.laser_cloud_raw_feature_index;
   laser_cloud_raw_horizontal_plane_index_ = projection.laser_cloud_raw_horizontal_plane_index;
 
+  skip_cnt_++;
+  if(skip_cnt_%5!=0)
+    return;
   //@ append observation to the vector
   if(vector_laser_cloud_raw_feature_.size()<2){
     vector_laser_cloud_raw_feature_.push_back(projection.laser_cloud_raw_feature);
