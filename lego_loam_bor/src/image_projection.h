@@ -35,6 +35,7 @@ class ImageProjection : public rclcpp::Node
     float vertical_angle_top_, vertical_angle_bottom_;
     float horizontal_ang_resolution_, vertical_ang_resolution_;
     float mount_angle_;
+    std::shared_ptr<cv::Mat> projected_image_;
     
     void ptrInitialization(std::string frame_id);
     void projectPointCloud();

@@ -83,6 +83,7 @@ class FeatureAssociation : public rclcpp::Node
   void publishOdometryTF();
   
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_feature_image_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pub_laser_odometry_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_current_feature_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_icped_feature_;
@@ -92,6 +93,8 @@ class FeatureAssociation : public rclcpp::Node
   Channel<ProjectionOut>& input_channel_;
   Channel<AssociationOut>& output_channel_;
 
+  pcl::VoxelGrid<PointType> ds_normal_feature_;
+  pcl::VoxelGrid<PointType> ds_plane_feature_;
   pcl::PointCloud<PointType>::Ptr normal_feature_current_;
   pcl::PointCloud<PointType>::Ptr normal_feature_last_;
   pcl::PointCloud<PointType>::Ptr plane_feature_current_;
@@ -109,6 +112,7 @@ class FeatureAssociation : public rclcpp::Node
   int skip_cnt_;
   LidarSensor lidar_sensor_;
   LidarOdometry lidar_odometry_;
+  std::shared_ptr<cv::Mat> range_image_;
   Pose6DOF feature_relative_pose_, plane_relative_pose_;
 };
 

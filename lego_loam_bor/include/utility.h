@@ -68,6 +68,7 @@ struct ProjectionOut
   std::unordered_map<size_t, size_t> laser_cloud_raw_horizontal_plane_index;
   pcl::PointCloud<PointType>::Ptr laser_cloud_raw_feature;
   pcl::PointCloud<PointType>::Ptr laser_cloud_raw_horizontal_plane;
+  std::shared_ptr<cv::Mat> range_image;
 };
 
 

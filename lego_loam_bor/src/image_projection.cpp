@@ -80,8 +80,9 @@ void ImageProjection::cloudHandler(const sensor_msgs::msg::PointCloud2::SharedPt
 void ImageProjection::projectPointCloud() {
 
   // range image projection
-  cv::Mat projected_image(cv::Size(horizontal_scans_, vertical_scans_), CV_16UC1);
-  projected_image.setTo(cv::Scalar(0));
+  projected_image_.reset(new cv::Mat());
+  projected_image_ = std::make_shared<cv::Mat>(cv::Size(horizontal_scans_, vertical_scans_), CV_8UC1);
+  projected_image_->setTo(cv::Scalar(0));
   const size_t cloud_size = laser_cloud_raw_->points.size();
 
   for (size_t i = 0; i < cloud_size; ++i) {
@@ -114,14 +115,14 @@ void ImageProjection::projectPointCloud() {
       continue;
     }
 
-    projected_image.at<unsigned short>(row_index, column_index) = (unsigned short)range*100; // to center-meter
+    projected_image_->at<unsigned char>(row_index, column_index) = (unsigned char)range*2; // maximum lidar range smaller than 125
     size_t index = column_index + row_index * horizontal_scans_;
     laser_cloud_raw_projected_->points[index] = a_pt;
     laser_cloud_raw_projected_->points[index].intensity = range;
   }
   std_msgs::msg::Header hdr;
   sensor_msgs::msg::Image::SharedPtr msg;
-  msg = cv_bridge::CvImage(hdr, "mono16", projected_image).toImageMsg();
+  msg = cv_bridge::CvImage(hdr, "mono8", *projected_image_).toImageMsg();
   pub_projected_image_->publish(*msg);
 }
 
@@ -178,6 +179,7 @@ void ImageProjection::toFeatureAssociatiion(){
   
   std::swap(out.laser_cloud_raw_feature, laser_cloud_raw_feature_);
   std::swap(out.laser_cloud_raw_horizontal_plane, laser_cloud_raw_horizontal_plane_);
+  std::swap(out.range_image, projected_image_);
   out.lidar_sensor = lidar_sensor_;
   out.laser_cloud_raw_feature_index = laser_cloud_raw_feature_index_;
   out.laser_cloud_raw_horizontal_plane_index = laser_cloud_raw_horizontal_plane_index_;

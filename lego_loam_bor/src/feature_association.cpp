@@ -8,7 +8,11 @@ Node(name), input_channel_(input_channel), output_channel_(output_channel), skip
 
   clock_ = this->get_clock();
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
-
+  
+  ds_normal_feature_.setLeafSize(0.05, 0.05, 0.05);
+  ds_plane_feature_.setLeafSize(0.05, 0.05, 0.05);
+  
+  pub_feature_image_ =  this->create_publisher<sensor_msgs::msg::Image>("feature_image", 1);
   pub_laser_odometry_ = this->create_publisher<nav_msgs::msg::Odometry>("laser_odometry", 1);
   pub_current_feature_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("pc_current_feature", 1); 
   pub_icped_feature_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("pc_icped_feature", 1); 
@@ -164,49 +168,36 @@ void FeatureAssociation::calculateRelativeTransformationPlane(){
 }
 
 void FeatureAssociation::findNormalFeatures(){
-    
-  //@Normal estimation on observation
-  pcl::PointCloud<pcl::Normal>::Ptr observation_normals;
-  observation_normals.reset(new pcl::PointCloud<pcl::Normal>);
-  pcl::NormalEstimation<PointType, pcl::Normal> nm;
-  pcl::search::KdTree<PointType>::Ptr tree (new pcl::search::KdTree<PointType>);
-  tree->setInputCloud(vector_laser_cloud_raw_feature_.back());
-  nm.setInputCloud (vector_laser_cloud_raw_feature_.back());
-  nm.setSearchMethod (tree);
-  nm.setKSearch (5);
-  nm.compute (*observation_normals);
-
+  
   if(vector_laser_cloud_raw_feature_.size()>1){
     normal_feature_last_ = normal_feature_current_;
   }
+  
+  //see: https://learnopencv.com/edge-detection-using-opencv/
+  cv::Mat vertical_feature_result;
+  cv::Sobel(*range_image_, vertical_feature_result, CV_8UC1, 1, 0, 5);
+  cv::Mat horizontal_feature_result;
+  cv::Sobel(*range_image_, horizontal_feature_result, CV_8UC1, 0, 1, 3);
+
+  std_msgs::msg::Header hdr;
+  sensor_msgs::msg::Image::SharedPtr msg;
+  msg = cv_bridge::CvImage(hdr, "mono8", vertical_feature_result).toImageMsg();
+  pub_feature_image_->publish(*msg);
 
   normal_feature_current_.reset(new pcl::PointCloud<PointType>());
   normal_feature_current_->header = vector_laser_cloud_raw_feature_.back()->header;
-  for (size_t i = 0; i < lidar_sensor_.vertical_scans-1; ++i ) {
-    for (size_t j = 1; j < lidar_sensor_.horizontal_scans; ++j) {
+  for (size_t i = 0; i < lidar_sensor_.vertical_scans; ++i ) {
+    for (size_t j = 0; j < lidar_sensor_.horizontal_scans; ++j) {
       size_t index = j + (i)*lidar_sensor_.horizontal_scans;
-      if(laser_cloud_raw_feature_index_.find(index-1) == laser_cloud_raw_feature_index_.end())
-        continue;
       if(laser_cloud_raw_feature_index_.find(index) == laser_cloud_raw_feature_index_.end())
         continue;
-      pcl::Normal v_0 = observation_normals->points[laser_cloud_raw_feature_index_[index-1]];
-      pcl::Normal v_1 = observation_normals->points[laser_cloud_raw_feature_index_[index]];
-      //if(fabs(v_0.normal_z)>10.0*fabs(v_0.normal_y) || fabs(v_0.normal_z)>10.0*fabs(v_0.normal_x))
-      //  continue;
-      //if(fabs(v_1.normal_z)>10.0*fabs(v_1.normal_y) || fabs(v_1.normal_z)>10.0*fabs(v_1.normal_x))
-      //  continue;      
-      double v0dotv1 = v_0.normal_x * v_1.normal_x + v_0.normal_y * v_1.normal_y + v_0.normal_z * v_1.normal_z;
-      double magnitude_0 = sqrt(v_0.normal_x * v_0.normal_x + v_0.normal_y * v_0.normal_y + v_0.normal_z * v_0.normal_z);
-      double magnitude_1 = sqrt(v_1.normal_x * v_1.normal_x + v_1.normal_y * v_1.normal_y + v_1.normal_z * v_1.normal_z);
-      double cos_theta = v0dotv1/(magnitude_0 * magnitude_1);
-      double theta = acos(cos_theta);
-      static double theta_threshold = -1;
-      if(fabs(theta) > theta_threshold){
+      if(vertical_feature_result.at<unsigned char>(i, j)==255 || horizontal_feature_result.at<unsigned char>(i, j)==255 )
         normal_feature_current_->push_back(vector_laser_cloud_raw_feature_.back()->points[laser_cloud_raw_feature_index_[index]]);
-      }
     }
   }
-  //RCLCPP_INFO(this->get_logger(), "Features: %lu", normal_feature_current_->points.size());
+  ds_normal_feature_.setInputCloud(normal_feature_current_);
+  ds_normal_feature_.filter(*normal_feature_current_);
+  RCLCPP_INFO(this->get_logger(), "Features: %lu", normal_feature_current_->points.size());
 }
 
 void FeatureAssociation::findPlaneFeatures(){
@@ -226,6 +217,8 @@ void FeatureAssociation::findPlaneFeatures(){
       plane_feature_current_->push_back(a_pt);
     }
   }
+  ds_plane_feature_.setInputCloud(plane_feature_current_);
+  ds_plane_feature_.filter(*plane_feature_current_);
   //RCLCPP_INFO(this->get_logger(), "Plane: %lu", plane_feature_current_->points.size());
 }
 
@@ -241,6 +234,7 @@ void FeatureAssociation::runFeatureAssociation(){
   lidar_sensor_ = projection.lidar_sensor;
   laser_cloud_raw_feature_index_ = projection.laser_cloud_raw_feature_index;
   laser_cloud_raw_horizontal_plane_index_ = projection.laser_cloud_raw_horizontal_plane_index;
+  range_image_ = projection.range_image;
 
   skip_cnt_++;
   if(skip_cnt_%5!=0)
