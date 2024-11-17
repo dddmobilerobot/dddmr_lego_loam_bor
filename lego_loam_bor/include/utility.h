@@ -1,72 +1,73 @@
 #ifndef _UTILITY_LIDAR_ODOMETRY_H_
 #define _UTILITY_LIDAR_ODOMETRY_H_
 
-
 #include "rclcpp/rclcpp.hpp"
 
-#include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/image.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
-#include <cloud_msgs/msg/cloud_info.hpp>
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <pcl/range_image/range_image.h>
 #include <pcl/filters/filter.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/common/common.h>
-#include <pcl/registration/icp.h>
+#include <pcl/common/transforms.h>
+//@kdtree and normals
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/features/normal_3d.h>
 
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
-#include "tf2/LinearMath/Transform.h"
-#include "tf2_ros/buffer.h"
-#include "tf2_ros/message_filter.h"
-#include "tf2_ros/transform_broadcaster.h"
+#include <tf2/LinearMath/Transform.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/message_filter.h>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2_eigen/tf2_eigen.hpp>
  
 #include <vector>
+#include <list>
+#include <unordered_map>
 #include <cmath>
-#include <algorithm>
-#include <queue>
-#include <deque>
-#include <iostream>
-#include <fstream>
-#include <ctime>
-#include <cfloat>
-#include <iterator>
-#include <sstream>
-#include <string>
-#include <limits>
-#include <iomanip>
-#include <array>
 #include <thread>
 #include <mutex>
 
-typedef pcl::PointXYZI  PointType;
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/opencv.hpp>
+#include <cv_bridge/cv_bridge.h>
 
-typedef Eigen::Vector3f Vector3;
+typedef pcl::PointXYZI  PointType;
 
 const double DEG_TO_RAD = M_PI / 180.0;
 
-
-struct smoothness_t{ 
-    float value;
-    size_t ind;
+struct LidarSensor{
+    int vertical_scans;
+    int horizontal_scans;
+    float vertical_angle_bottom, vertical_angle_top;
+    float horizontal_ang_resolution, vertical_ang_resolution;
+    float pitch_angle;
 };
 
-struct by_value{ 
-    bool operator()(smoothness_t const &left, smoothness_t const &right) { 
-        return left.value < right.value;
-    }
+class Pose6DOF{
+  public:
+    void setXYZRPY(float x, float y, float z, float roll, float pitch, float yaw);
+    float x, y, z;
+    float roll, pitch, yaw;
 };
+void Pose6DOF::setXYZRPY(float mx, float my, float mz, float mroll, float mpitch, float myaw){
+  x=mx; y=my; z=mz; roll=mroll; pitch=mpitch; yaw=myaw;
+}
 
 struct ProjectionOut
 {
-  pcl::PointCloud<PointType>::Ptr segmented_cloud;
-  pcl::PointCloud<PointType>::Ptr outlier_cloud;
-  cloud_msgs::msg::CloudInfo seg_msg;
+  LidarSensor lidar_sensor;
+  std::unordered_map<size_t, size_t> laser_cloud_raw_feature_index;
+  std::unordered_map<size_t, size_t> laser_cloud_raw_horizontal_plane_index;
+  pcl::PointCloud<PointType>::Ptr laser_cloud_raw_feature;
+  pcl::PointCloud<PointType>::Ptr laser_cloud_raw_horizontal_plane;
 };
 
 
@@ -79,43 +80,6 @@ struct AssociationOut
   nav_msgs::msg::Odometry laser_odometry;
 };
 
-inline void OdometryToTransform(const nav_msgs::msg::Odometry& odometry,
-                                float* transform) {
-  double roll, pitch, yaw;
-  geometry_msgs::msg::Quaternion geoQuat = odometry.pose.pose.orientation;
-  tf2::Matrix3x3(tf2::Quaternion(geoQuat.z, -geoQuat.x, -geoQuat.y, geoQuat.w))
-      .getRPY(roll, pitch, yaw);
 
-  transform[0] = -pitch;
-  transform[1] = -yaw;
-  transform[2] = roll;
-
-  transform[3] = odometry.pose.pose.position.x;
-  transform[4] = odometry.pose.pose.position.y;
-  transform[5] = odometry.pose.pose.position.z;
-}
-
-/*
-    * A point cloud type that has 6D pose info ([x,y,z,roll,pitch,yaw] intensity is time stamp)
-    */
-struct PointXYZIRPYT
-{
-    PCL_ADD_POINT4D
-    PCL_ADD_INTENSITY;
-    float roll;
-    float pitch;
-    float yaw;
-    double time;
-    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-} EIGEN_ALIGN16;
-
-POINT_CLOUD_REGISTER_POINT_STRUCT (PointXYZIRPYT,
-                                   (float, x, x) (float, y, y)
-                                   (float, z, z) (float, intensity, intensity)
-                                   (float, roll, roll) (float, pitch, pitch) (float, yaw, yaw)
-                                   (double, time, time)
-)
-
-typedef PointXYZIRPYT  PointTypePose;
 
 #endif

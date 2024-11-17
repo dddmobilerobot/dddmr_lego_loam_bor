@@ -27,10 +27,12 @@ find_package(pluginlib REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 find_package(rosbag2_storage REQUIRED)
 find_package(pcl_conversions REQUIRED)
+find_package(cv_bridge REQUIRED)
 
 find_package(Boost REQUIRED COMPONENTS filesystem serialization system thread date_time regex timer chrono)
 find_package(GTSAM REQUIRED)
 find_package(PCL REQUIRED QUIET)
+find_package(OpenCV REQUIRED)
 
 set(dependencies
   rclcpp
@@ -54,6 +56,7 @@ set(dependencies
   rosbag2_cpp
   rosbag2_storage
   cloud_msgs
+  cv_bridge
 )
 
 include_directories(
@@ -75,10 +78,11 @@ ament_target_dependencies(opt_icp_gn
 
 # mcl/lego loam ip
 add_library(image_projection SHARED
-  src/imageProjection.cpp
+  src/image_projection.cpp
 )
 target_link_libraries(image_projection
   ${PCL_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 ament_target_dependencies(image_projection
   ${dependencies}
@@ -86,76 +90,16 @@ ament_target_dependencies(image_projection
 
 #lego loam fa
 add_library(feature_association SHARED
-  src/featureAssociation.cpp
+  src/feature_association.cpp
 )
 target_link_libraries(feature_association
   ${PCL_LIBRARIES}
+  opt_icp_gn
 )
 ament_target_dependencies(feature_association
   ${dependencies}
 )
 
-#lego loam mo
-add_library(map_optimization SHARED
-  src/mapOptimization.cpp
-)
-target_link_libraries(map_optimization
-  ${PCL_LIBRARIES}
-  ${GTSAM_LIBRARIES}
-  opt_icp_gn
-)
-ament_target_dependencies(map_optimization
-  ${dependencies}
-)
-
-#lego loam tf
-add_library(transform_fusion SHARED
-  src/transformFusion.cpp
-)
-target_link_libraries(transform_fusion
-  ${PCL_LIBRARIES}
-  ${GTSAM_LIBRARIES}
-)
-ament_target_dependencies(transform_fusion
-  ${dependencies}
-)
-
-#pose graph editing
-add_library(pose_graph_editor SHARED
-  src/pose_graph_editor/pose_graph_editor.cpp
-)
-target_link_libraries(pose_graph_editor
-  ${PCL_LIBRARIES}
-  ${GTSAM_LIBRARIES}
-  opt_icp_gn
-)
-ament_target_dependencies(pose_graph_editor
-  ${dependencies}
-)
-
-#pose graph merge editing
-add_library(pose_graph_merge_editor SHARED
-  src/pose_graph_editor/pose_graph_merge_editor.cpp
-)
-target_link_libraries(pose_graph_merge_editor
-  pose_graph_editor
-)
-ament_target_dependencies(pose_graph_merge_editor
-  ${dependencies}
-)
-
-#mcl feature node
-add_executable(mcl_feature
-  src/mcl_feature_node.cpp
-)
-target_link_libraries(mcl_feature 
-  image_projection
-  feature_association
-  gtsam
-)
-ament_target_dependencies(mcl_feature
-  ${dependencies}
-)
 
 #lego loam bag node
 add_executable(lego_loam_bag
@@ -164,49 +108,9 @@ add_executable(lego_loam_bag
 target_link_libraries(lego_loam_bag 
   image_projection
   feature_association
-  map_optimization
-  transform_fusion
   gtsam
 )
 ament_target_dependencies(lego_loam_bag
-  ${dependencies}
-)
-
-#lego loam node
-add_executable(lego_loam
-  src/lego_loam_node.cpp
-)
-target_link_libraries(lego_loam 
-  image_projection
-  feature_association
-  map_optimization
-  transform_fusion
-  gtsam
-)
-ament_target_dependencies(lego_loam
-  ${dependencies}
-)
-
-#pose graph editor node
-add_executable(pose_graph_editor_node
-  src/pose_graph_editor/pose_graph_editor_node.cpp
-)
-target_link_libraries(pose_graph_editor_node 
-  pose_graph_merge_editor
-  gtsam
-)
-ament_target_dependencies(pose_graph_editor_node
-  ${dependencies}
-)
-
-#pointcloud to occupancy node
-add_executable(pointcloud2occupancy
-  src/pointcloud2occupancy/pointcloud2occupancy.cpp
-)
-target_link_libraries(pointcloud2occupancy 
-  ${PCL_LIBRARIES}
-)
-ament_target_dependencies(pointcloud2occupancy
   ${dependencies}
 )
 
@@ -214,9 +118,6 @@ install(TARGETS
   opt_icp_gn
   image_projection
   feature_association
-  map_optimization
-  transform_fusion
-  pose_graph_editor
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -224,11 +125,7 @@ install(TARGETS
 
 #install node
 install(TARGETS
-  mcl_feature
-  lego_loam
   lego_loam_bag
-  pose_graph_editor_node
-  pointcloud2occupancy
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
