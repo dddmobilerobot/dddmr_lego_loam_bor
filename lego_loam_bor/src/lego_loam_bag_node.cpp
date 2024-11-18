@@ -1,10 +1,6 @@
 #include "image_projection.h"
 #include "feature_association.h"
-#include <chrono>
-#include <functional>
-#include <memory>
-#include <string>
-#include "rclcpp/rclcpp.hpp"
+#include "map_optimization.h"
 
 // ROS bag
 #include <rosbag2_cpp/readers/sequential_reader.hpp>
@@ -102,6 +98,7 @@ int main(int argc, char** argv) {
   auto IP = std::make_shared<ImageProjection>("lego_loam_ip", projection_out_channel);
   Channel<AssociationOut> association_out_channel(false);
   auto FA = std::make_shared<FeatureAssociation>("lego_loam_fa", projection_out_channel, association_out_channel);
+  auto MO = std::make_shared<MapOptimization>("lego_loam_mo", association_out_channel);
   auto BR = std::make_shared<BagReader>();
   
   rosbag2_storage::StorageOptions storage_options{};
@@ -114,6 +111,13 @@ int main(int argc, char** argv) {
 
   rosbag2_cpp::readers::SequentialReader reader;
   reader.open(storage_options, converter_options);
+
+  //@calculate clock
+  int cycle_cnt = 0;
+  double last_pub_time = 0.0;
+  struct timeval start, inloop, end;
+  gettimeofday(&start, NULL);
+  last_pub_time = start.tv_sec + double(start.tv_usec) / 1e6;
 
   while (rclcpp::ok() && reader.has_next())
   {
@@ -136,6 +140,17 @@ int main(int argc, char** argv) {
       *lidar_msg = msg;
       IP->cloudHandler(lidar_msg);
       FA->runFeatureAssociation();
+      if(cycle_cnt%5==0){
+        MO->run();
+      }
+      cycle_cnt++;
+      
+      gettimeofday(&inloop, NULL);
+      double inloop_t = inloop.tv_sec + double(inloop.tv_usec) / 1e6;
+      if(inloop_t - last_pub_time > 1.0){
+        MO->publishGlobalMapThread();
+        last_pub_time = inloop_t;
+      }
     }
     rclcpp::spin_some(BR); 
   }

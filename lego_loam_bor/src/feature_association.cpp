@@ -73,14 +73,14 @@ void FeatureAssociation::calculateRelativeTransformationNormal(){
                 0.0, 0.0, 0.0, 1.0;
     OptimizedICPGN icp_opti;
     icp_opti.SetTargetCloud(normal_feature_last);
-    icp_opti.SetTransformationEpsilon(1e-3);
-    icp_opti.SetMaxIterations(50);
+    icp_opti.SetTransformationEpsilon(1e-2);
+    icp_opti.SetMaxIterations(20);
     icp_opti.SetMaxCorrespondDistance(1.0);
     icp_opti.Match(normal_feature_current, T_predict, cloud_source_opti_transformed_ptr, T_final);
     if (!icp_opti.HasConverged() || icp_opti.GetFitnessScore() > 3.0)
     {
       //@ TODO: calculate RT between end() and end()-2
-      RCLCPP_INFO(this->get_logger(), "Normal relative pose not converged.");
+      RCLCPP_INFO(this->get_logger(), "Normal relative pose not converged: %.2f", icp_opti.GetFitnessScore());
     }
 
     //RCLCPP_INFO_STREAM(this->get_logger(), "T_final: \n" << T_final);
@@ -135,14 +135,14 @@ void FeatureAssociation::calculateRelativeTransformationPlane(){
                 0.0, 0.0, 0.0, 1.0;
     OptimizedICPGN icp_opti;
     icp_opti.SetTargetCloud(plane_feature_last);
-    icp_opti.SetTransformationEpsilon(1e-3);
-    icp_opti.SetMaxIterations(50);
+    icp_opti.SetTransformationEpsilon(1e-2);
+    icp_opti.SetMaxIterations(20);
     icp_opti.SetMaxCorrespondDistance(1.0);
     icp_opti.Match(plane_feature_current, T_predict, cloud_source_opti_transformed_ptr, T_final);
     if (!icp_opti.HasConverged() || icp_opti.GetFitnessScore() > 3.0)
     {
       //@ TODO: calculate RT between end() and end()-2
-      RCLCPP_INFO(this->get_logger(), "Plane relative pose not converged.");
+      RCLCPP_INFO(this->get_logger(), "Plane relative pose not converged: %.2f", icp_opti.GetFitnessScore());
     }
 
     float x, y, z, roll, pitch, yaw;
@@ -197,7 +197,7 @@ void FeatureAssociation::findNormalFeatures(){
   }
   ds_normal_feature_.setInputCloud(normal_feature_current_);
   ds_normal_feature_.filter(*normal_feature_current_);
-  RCLCPP_INFO(this->get_logger(), "Features: %lu", normal_feature_current_->points.size());
+  //RCLCPP_INFO(this->get_logger(), "Features: %lu", normal_feature_current_->points.size());
 }
 
 void FeatureAssociation::findPlaneFeatures(){
@@ -230,15 +230,11 @@ void FeatureAssociation::runFeatureAssociation(){
 
   ProjectionOut projection;
   input_channel_.receive(projection);
-  
   lidar_sensor_ = projection.lidar_sensor;
   laser_cloud_raw_feature_index_ = projection.laser_cloud_raw_feature_index;
   laser_cloud_raw_horizontal_plane_index_ = projection.laser_cloud_raw_horizontal_plane_index;
   range_image_ = projection.range_image;
 
-  skip_cnt_++;
-  if(skip_cnt_%5!=0)
-    return;
   //@ append observation to the vector
   if(vector_laser_cloud_raw_feature_.size()<2){
     vector_laser_cloud_raw_feature_.push_back(projection.laser_cloud_raw_feature);
@@ -260,5 +256,11 @@ void FeatureAssociation::runFeatureAssociation(){
   calculateRelativeTransformationPlane();
   fuseRelativePoses();
   publishOdometryTF();
+
+  AssociationOut out;
+  out.normal_feature_cloud = normal_feature_current_;
+  out.plane_feature_cloud = plane_feature_current_;
+  out.feature_odometry = lidar_odometry_.getLidarOdometry();
+  output_channel_.send(std::move(out));
 
 }

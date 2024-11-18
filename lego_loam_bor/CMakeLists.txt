@@ -100,6 +100,17 @@ ament_target_dependencies(feature_association
   ${dependencies}
 )
 
+#lego loam mo
+add_library(map_optimization SHARED
+  src/map_optimization.cpp
+)
+target_link_libraries(map_optimization
+  ${PCL_LIBRARIES}
+  opt_icp_gn
+)
+ament_target_dependencies(map_optimization
+  ${dependencies}
+)
 
 #lego loam bag node
 add_executable(lego_loam_bag
@@ -108,6 +119,7 @@ add_executable(lego_loam_bag
 target_link_libraries(lego_loam_bag 
   image_projection
   feature_association
+  map_optimization
   gtsam
 )
 ament_target_dependencies(lego_loam_bag
@@ -118,6 +130,7 @@ install(TARGETS
   opt_icp_gn
   image_projection
   feature_association
+  map_optimization
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -141,6 +154,6 @@ install(DIRECTORY
 )
 
 ament_export_include_directories(include)
-ament_export_libraries(opt_icp_gn image_projection feature_association map_optimization transform_fusion pose_graph_editor)
+ament_export_libraries(opt_icp_gn image_projection feature_association map_optimization)
 ament_export_dependencies(${dependencies})
 ament_package()

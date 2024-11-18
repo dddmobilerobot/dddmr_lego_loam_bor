@@ -57,6 +57,7 @@ class Pose6DOF{
     float x, y, z;
     float roll, pitch, yaw;
 };
+
 void Pose6DOF::setXYZRPY(float mx, float my, float mz, float mroll, float mpitch, float myaw){
   x=mx; y=my; z=mz; roll=mroll; pitch=mpitch; yaw=myaw;
 }
@@ -74,11 +75,9 @@ struct ProjectionOut
 
 struct AssociationOut
 {
-  pcl::PointCloud<PointType>::Ptr cloud_outlier_last;
-  pcl::PointCloud<PointType>::Ptr cloud_corner_last;
-  pcl::PointCloud<PointType>::Ptr cloud_surf_last;
-  pcl::PointCloud<PointType>::Ptr cloud_surf_flat_last;
-  nav_msgs::msg::Odometry laser_odometry;
+  pcl::PointCloud<PointType>::Ptr normal_feature_cloud;
+  pcl::PointCloud<PointType>::Ptr plane_feature_cloud;
+  nav_msgs::msg::Odometry feature_odometry;
 };
 
 
