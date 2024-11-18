@@ -49,6 +49,7 @@ struct LidarSensor{
     float vertical_angle_bottom, vertical_angle_top;
     float horizontal_ang_resolution, vertical_ang_resolution;
     float pitch_angle;
+    std::string frame_id;
 };
 
 class Pose6DOF{
@@ -75,6 +76,7 @@ struct ProjectionOut
 
 struct AssociationOut
 {
+  LidarSensor lidar_sensor;
   pcl::PointCloud<PointType>::Ptr normal_feature_cloud;
   pcl::PointCloud<PointType>::Ptr plane_feature_cloud;
   nav_msgs::msg::Odometry feature_odometry;

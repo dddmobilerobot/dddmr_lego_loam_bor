@@ -129,6 +129,7 @@ class MapOptimization : public rclcpp::Node
   
   //@ ros interface: pub/sub/timer
   rclcpp::Clock::SharedPtr clock_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   rclcpp::CallbackGroup::SharedPtr timer_run_cb_group_;
   rclcpp::CallbackGroup::SharedPtr timer_pub_gbl_map_cb_group_;
   rclcpp::TimerBase::SharedPtr timer_run_;
@@ -143,18 +144,22 @@ class MapOptimization : public rclcpp::Node
   tf2::Transform tf2_map2keyframe_pose_;
   tf2::Transform tf2_map2sensor_;
   tf2::Transform tf2_current_keyframe2sensor_;
-
+  geometry_msgs::msg::TransformStamped tf2_map2sensor_ros_;
   // Key frame
   KeyFrames KF_;
   
   //@ pointcloud
-  pcl::PointCloud<PointType>::Ptr current_keyframe_stitch_at_map_frame_;
+  pcl::PointCloud<PointType>::Ptr current_normal_stitch_at_map_frame_;
+  pcl::PointCloud<PointType>::Ptr current_plane_stitch_at_map_frame_;
   pcl::PointCloud<PointType>::Ptr normal_feature_cloud_;
   pcl::PointCloud<PointType>::Ptr plane_feature_cloud_;
   
   //@ voxel
   pcl::VoxelGrid<PointType> ds_pub_map_;
+  pcl::VoxelGrid<PointType> ds_current_keyframe_stitch_at_map_frame_;
+  pcl::VoxelGrid<PointType> ds_current_feature_frame_;
 
+  LidarSensor lidar_sensor_;
   bool is_first_keyframe_;
 
 };

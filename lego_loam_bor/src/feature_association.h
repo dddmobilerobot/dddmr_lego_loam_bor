@@ -16,7 +16,7 @@ class LidarOdometry{
     LidarOdometry();
     bool isInitialized();
     nav_msgs::msg::Odometry getLidarOdometry();
-    void accumulateTransform(double x, double y, double z, double roll, double pitch, double yaw);
+    void accumulateTransform(double x, double y, double z, double roll, double pitch, double yaw, rclcpp::Time stamp);
     void setChildFrameAndClock(std::string child_frame_id, rclcpp::Clock::SharedPtr clock);
 
   private:
@@ -45,7 +45,9 @@ void LidarOdometry::setChildFrameAndClock(std::string child_frame_id, rclcpp::Cl
   is_initialized_ = true;
 }
 
-void LidarOdometry::accumulateTransform(double x, double y, double z, double roll, double pitch, double yaw){
+void LidarOdometry::accumulateTransform(double x, double y, double z, double roll, double pitch, double yaw, rclcpp::Time stamp){
+  
+  lidar_odometry_.header.stamp = stamp;
 
   tf2::Quaternion q;
   q.setRPY(roll, pitch, yaw);

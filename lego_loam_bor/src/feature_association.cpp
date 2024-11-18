@@ -47,7 +47,6 @@ void FeatureAssociation::publishOdometryTF(){
 void FeatureAssociation::calculateRelativeTransformationNormal(){
   
   if(vector_laser_cloud_raw_feature_.size()<2){
-    //lidar_odometry_.accumulateTransform(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     feature_relative_pose_.setXYZRPY(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
   }
   else{
@@ -109,7 +108,6 @@ void FeatureAssociation::calculateRelativeTransformationNormal(){
 void FeatureAssociation::calculateRelativeTransformationPlane(){
   
   if(vector_laser_cloud_raw_horizontal_plane_.size()<2){
-    //lidar_odometry_.accumulateTransform(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
     plane_relative_pose_.setXYZRPY(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
   }
   else{
@@ -177,7 +175,9 @@ void FeatureAssociation::findNormalFeatures(){
   cv::Mat vertical_feature_result;
   cv::Sobel(*range_image_, vertical_feature_result, CV_8UC1, 1, 0, 5);
   cv::Mat horizontal_feature_result;
-  cv::Sobel(*range_image_, horizontal_feature_result, CV_8UC1, 0, 1, 3);
+  cv::Sobel(*range_image_, horizontal_feature_result, CV_8UC1, 0, 1, 5);
+  cv::Mat diag_feature_result;
+  cv::Sobel(*range_image_, diag_feature_result, CV_8UC1, 1, 1, 9);
 
   std_msgs::msg::Header hdr;
   sensor_msgs::msg::Image::SharedPtr msg;
@@ -191,7 +191,7 @@ void FeatureAssociation::findNormalFeatures(){
       size_t index = j + (i)*lidar_sensor_.horizontal_scans;
       if(laser_cloud_raw_feature_index_.find(index) == laser_cloud_raw_feature_index_.end())
         continue;
-      if(vertical_feature_result.at<unsigned char>(i, j)==255 || horizontal_feature_result.at<unsigned char>(i, j)==255 )
+      if(vertical_feature_result.at<unsigned char>(i, j)==255 || horizontal_feature_result.at<unsigned char>(i, j)==255 || diag_feature_result.at<unsigned char>(i, j)==255 )
         normal_feature_current_->push_back(vector_laser_cloud_raw_feature_.back()->points[laser_cloud_raw_feature_index_[index]]);
     }
   }
@@ -223,7 +223,8 @@ void FeatureAssociation::findPlaneFeatures(){
 }
 
 void FeatureAssociation::fuseRelativePoses(){
-  lidar_odometry_.accumulateTransform(feature_relative_pose_.x, feature_relative_pose_.y, plane_relative_pose_.z, plane_relative_pose_.roll, plane_relative_pose_.pitch, feature_relative_pose_.yaw);
+  lidar_odometry_.accumulateTransform(feature_relative_pose_.x, feature_relative_pose_.y, plane_relative_pose_.z, 
+                                        plane_relative_pose_.roll, plane_relative_pose_.pitch, feature_relative_pose_.yaw*3.14, clock_->now());
 }
 
 void FeatureAssociation::runFeatureAssociation(){
@@ -261,6 +262,7 @@ void FeatureAssociation::runFeatureAssociation(){
   out.normal_feature_cloud = normal_feature_current_;
   out.plane_feature_cloud = plane_feature_current_;
   out.feature_odometry = lidar_odometry_.getLidarOdometry();
+  out.lidar_sensor = lidar_sensor_;
   output_channel_.send(std::move(out));
 
 }

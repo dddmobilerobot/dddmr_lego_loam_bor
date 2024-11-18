@@ -66,6 +66,7 @@ void ImageProjection::ptrInitialization(std::string frame_id){
 void ImageProjection::cloudHandler(const sensor_msgs::msg::PointCloud2::SharedPtr msg){
   
   ptrInitialization(msg->header.frame_id);
+  lidar_sensor_.frame_id = msg->header.frame_id;
   // Copy and remove NAN points
   pcl::fromROSMsg(*msg, *laser_cloud_raw_);
   std::vector<int> indices;

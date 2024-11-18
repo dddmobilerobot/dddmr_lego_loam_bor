@@ -8,11 +8,4 @@
   <node pkg="rviz2" exec="rviz2" output="screen" respawn="false" args="-d $(find-pkg-share lego_loam_bor)/rviz/lego_loam.rviz">
   </node>
 
-  <!--- TF -->
-  <node pkg="tf2_ros" exec="static_transform_publisher" name="camera_init_to_map"  args="0 0 0 1.570795   0        1.570795 map    camera_init" />
-  <node pkg="tf2_ros" exec="static_transform_publisher" name="camera_init_odom_to_map"  args="0 0 0 -1.570795   0        1.570795 map    camera_wheel_based" />
-  <node pkg="tf2_ros" exec="static_transform_publisher" name="camera_init_odom_to_map"  args="0 0 0 1.570795   0        1.570795 map    camera_laser_based" />
-  <node pkg="tf2_ros" exec="static_transform_publisher" name="base_link_to_camera" args="0 0 0 -1.570795 -1.570795 0        camera base_link" />
-  <node pkg="tf2_ros" exec="static_transform_publisher" name="base_link_to_laser_link" args="0 0 0 0.0 0.0 0        base_link laser_link" />
-
 </launch>
